@@ -1,1 +1,8 @@
-_notes-tui-source
+_notes-tui-source/
+denote-tasks
+*.exe
+*.test
+*.out
+.DS_Store
+coverage.txt
+/dist/
