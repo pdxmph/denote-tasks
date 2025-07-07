@@ -847,4 +847,158 @@ This session continued with significant visual and usability enhancements:
   - Returns to appropriate view after operation
 - **Updated UI hints**: Project task tab now shows all available operations
 
+### Due Date Display Improvements
+- **Simplified due date indicators**: Removed "DUE:", "Due:" prefixes and exclamation marks
+  - Red color for overdue tasks
+  - Orange color for tasks due soon (within configurable soon_horizon)
+  - Normal color for future tasks
+- **Uses soon_horizon config**: Same setting as the "soon" filter (default 3 days)
+- **Fixed column alignment**: Resolved issue where colored dates broke column spacing
+- **Reordered columns for better scanning**:
+  - New order: status → priority → due date → title → {project} → [tags] → (area)
+  - Title expanded to 50 characters with better space usage
+  - Project names added in curly braces (8 chars max)
+  - Tags expanded to 25 characters
+  - Area moved to end as it's filtered frequently
+  - Due date positioned right after priority for quick urgency assessment
+  - Added 2-space gap between due date and title for visual separation
+
+### Task List Layout Refinements
+- **Added project column**: Shows project assignment as `{projec}` between title and tags
+- **Optimized column widths**: Reduced empty space by tightening project column (8 chars)
+- **Smart area display**: Area column automatically hidden when filtering by area
+  - Reduces redundant information when all tasks share same area
+  - Frees up horizontal space for other columns
+  - Active filter still shown in header
+
 The interface is now more readable, more compliant with Denote specifications, and provides better default views for task management.
+
+## Session: 2025-01-16 - Command Line Area Filter
+
+### What Was Done
+
+Added command line switch to launch TUI with area filter pre-applied:
+
+#### Implementation
+- **`-area` flag**: Launch TUI directly into task mode with specified area filter
+- **Auto-configuration**: When area filter is specified:
+  - Switches to task mode automatically
+  - Applies "active" state filter (open + delegated tasks)
+  - Sets sort to due date
+  - Filter persists throughout the session
+
+#### Files Modified
+- `cmd/denote-tasks/main.go` - Added area flag and mode detection
+- `internal/tui/tui.go` - Updated Run() to accept initial area filter
+- `internal/cli/cli.go` - Updated usage documentation
+
+### Usage Examples
+
+```bash
+# Launch TUI filtered to work tasks
+./denote-tasks -area work
+
+# Combine with config flag
+./denote-tasks --config test-config.toml -area personal
+
+# Works with or without explicit --tui flag
+./denote-tasks --tui -area home
+```
+
+### Testing Status
+
+**IMPLEMENTED BUT NOT TESTED:**
+
+Test that:
+1. `-area work` launches TUI in task mode with work filter
+2. The area filter is applied and visible in the header
+3. The TUI starts with "active" state filter and due date sort
+4. The filter persists when navigating and using other features
+5. Help text shows the new command line option
+
+## Session: 2025-01-16 - Project Management & UI Polish
+
+### What Was Done
+
+Major improvements to project management and task list display:
+
+#### 1. Project Management Features
+- **Rename file hotkey ('r')**: Added 'r' key to rename files based on current metadata
+  - Works in task view, project view, and main task list
+  - Updates filename to match title slug while preserving ID and tags
+  - Shows confirmation message after successful rename
+  
+- **Project title editing**: Added 't' hotkey in project overview to edit title
+  - Automatically renames file with new slug
+  - Preserves Denote ID and tags
+  - Updates all internal references
+
+- **Safe project deletion**: Enhanced 'x' key in project overview
+  - Finds all tasks assigned to the project
+  - Shows warning with list of affected tasks (up to 10)
+  - Clears project_id from tasks before deleting project
+  - Prevents orphaned task references
+
+#### 2. Auto-rename on External Edit
+- Files automatically check for tag changes after external editor
+- If tags in metadata differ from filename, file is renamed
+- Seamless experience - edit tags in editor, file updates on return
+- Shows "File renamed to match updated tags" message
+
+#### 3. Task List Re-sorting
+- Task list now re-sorts after editing metadata
+- When due dates change, tasks move to correct position
+- Applies when returning from external editor
+- Also when exiting task/project detail views
+
+#### 4. Command Line Enhancements
+- **`-area` flag**: Launch TUI with area filter pre-applied
+- **`-projects` flag**: Launch TUI showing only projects
+  - Can combine with `-area` for filtered project list
+  - Example: `denote-tasks -projects -area work`
+- Both flags automatically switch to task mode with proper sorting
+
+#### 5. Task List Visual Improvements
+- **Project names in task list**: Moved to end of line to fix spacing issues
+- **Active projects in cyan**: Both project lines and project references use cyan
+- **Unified task/project display**: Projects now display like tasks
+  - Same column alignment and spacing
+  - No special formatting (removed [ACT] badges)
+  - Active projects shown in cyan for visual milestones
+  - Same status indicators (▶ for active, ● for completed, etc.)
+
+#### 6. Project Editing Fix
+- Fixed critical bug where project edits weren't saving
+- Issue was type detection in ParseFrontmatterFile
+- Now correctly identifies projects by "type: project" in YAML
+- Project metadata updates now persist properly
+
+### Files Modified
+- `internal/tui/task_view_keys.go` - Added 'r' rename key handler
+- `internal/tui/project_view_keys.go` - Added title editing and safe deletion
+- `internal/tui/model.go` - Added rename, title edit, and project deletion logic
+- `internal/tui/views.go` - Unified project/task display, moved project column
+- `internal/denote/frontmatter.go` - Fixed type detection for projects
+- `cmd/denote-tasks/main.go` - Added -projects flag
+- `internal/tui/keys.go` - Enhanced delete confirmation for projects
+
+### Testing Status
+
+**✅ TESTED AND CONFIRMED BY USER:**
+
+All features have been tested and confirmed working:
+1. File rename with 'r' key updates filename to match tags
+2. Project title editing with 't' key renames file with new slug
+3. Project deletion safely clears references from tasks
+4. Auto-rename works when returning from external editor
+5. Task list re-sorts when due dates change
+6. Command line flags (-area, -projects) work correctly
+7. Project editing now saves properly
+8. Visual improvements make the interface cleaner and more consistent
+
+### Known Issues Fixed
+- Project edits not saving (type detection issue)
+- Project/task alignment inconsistencies
+- Tags not updating filenames
+- Task list not re-sorting after edits
+- Projects having different formatting than tasks

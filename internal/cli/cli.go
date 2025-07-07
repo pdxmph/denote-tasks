@@ -262,6 +262,8 @@ Commands:
 
 Options:
   --tui               Launch TUI interface
+  --area <area>       Launch TUI with area filter
+  --projects          Launch TUI showing projects list
   --version           Show version
   --config <path>     Use specific config file
 

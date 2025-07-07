@@ -42,6 +42,7 @@ type Model struct {
 	priorityFilter string
 	stateFilter    string
 	soonFilter     bool
+	projectFilter  bool  // Filter to show only projects
 	
 	// Preview
 	previewFile     *denote.File
@@ -64,6 +65,7 @@ type Model struct {
 	projectViewTab     int // 0 = overview, 1 = tasks
 	projectTasks       []denote.Task // tasks assigned to current project
 	projectTasksCursor int
+	affectedTasks      []denote.Task // tasks affected by project deletion
 	
 	// Display
 	err        error
@@ -232,6 +234,13 @@ func (m *Model) applyFilters() {
 			// In Task mode, only show tasks and projects
 			if !f.IsTask() && !f.IsProject() {
 				continue
+			}
+			
+			// Apply project filter if active
+			if m.projectFilter {
+				if !f.IsProject() {
+					continue
+				}
 			}
 		} else {
 			// In Notes mode, exclude tasks and projects
@@ -482,6 +491,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Always rescan files after editing
 		m.scanFiles()
 		
+		// Re-apply filters and sort to reflect any metadata changes
+		m.applyFilters()
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		
 		if newPath != "" && newPath != oldPath {
 			m.statusMsg = "File renamed to match updated tags"
 		}
@@ -709,6 +723,8 @@ func (m *Model) updateProjectField(field, value string) error {
 	// Update the metadata
 	if projectMeta, ok := fm.Metadata.(denote.ProjectMetadata); ok {
 		switch field {
+		case "title":
+			projectMeta.Title = value
 		case "priority":
 			projectMeta.Priority = value
 		case "status":
@@ -741,25 +757,68 @@ func (m *Model) updateProjectField(field, value string) error {
 			return fmt.Errorf("failed to write frontmatter: %w", err)
 		}
 		
-		// Check if we need to rename the file (for tag changes)
+		// Check if we need to rename the file (for tag or title changes)
 		oldPath := m.viewingFile.Path
 		newPath := oldPath
 		
-		if field == "tags" {
-			// Combine filename tags with metadata tags, excluding 'project'
-			allTags := []string{"project"} // Always include project tag
-			for _, tag := range projectMeta.Tags {
-				if tag != "project" {
-					allTags = append(allTags, tag)
+		if field == "tags" || field == "title" {
+			if field == "title" {
+				// For title changes, we need to update the slug
+				// Parse the current filename to get components
+				parser := denote.NewParser()
+				oldFile, err := parser.ParseFilename(filepath.Base(oldPath))
+				if err != nil {
+					return fmt.Errorf("failed to parse filename: %w", err)
 				}
+				
+				// Create new filename with updated title slug
+				// Convert title to slug (same logic as titleToSlug in create.go)
+				slug := strings.ToLower(projectMeta.Title)
+				slug = strings.Map(func(r rune) rune {
+					if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+						return r
+					}
+					return '-'
+				}, slug)
+				for strings.Contains(slug, "--") {
+					slug = strings.ReplaceAll(slug, "--", "-")
+				}
+				slug = strings.Trim(slug, "-")
+				
+				newBasename := fmt.Sprintf("%s--%s", oldFile.ID, slug)
+				
+				// Add tags
+				if len(oldFile.Tags) > 0 {
+					newBasename += "__" + strings.Join(oldFile.Tags, "__")
+				}
+				newBasename += ".md"
+				
+				// Create full path
+				dir := filepath.Dir(oldPath)
+				newPath = filepath.Join(dir, newBasename)
+				
+				// Rename the file
+				if newPath != oldPath {
+					if err := os.Rename(oldPath, newPath); err != nil {
+						return fmt.Errorf("failed to rename file: %w", err)
+					}
+				}
+			} else {
+				// Tag changes - use existing logic
+				allTags := []string{"project"} // Always include project tag
+				for _, tag := range projectMeta.Tags {
+					if tag != "project" {
+						allTags = append(allTags, tag)
+					}
+				}
+				
+				// Rename file to reflect new tags
+				renamed, err := denote.RenameFileForTags(oldPath, allTags)
+				if err != nil {
+					return fmt.Errorf("failed to rename file: %w", err)
+				}
+				newPath = renamed
 			}
-			
-			// Rename file to reflect new tags
-			renamed, err := denote.RenameFileForTags(oldPath, allTags)
-			if err != nil {
-				return fmt.Errorf("failed to rename file: %w", err)
-			}
-			newPath = renamed
 		}
 		
 		// Write to file (at potentially new path)
@@ -791,7 +850,10 @@ func (m *Model) updateProjectField(field, value string) error {
 			}
 		}
 		
-		m.statusMsg = fmt.Sprintf("Updated %s to %s", field, value)
+		m.statusMsg = fmt.Sprintf("Updated %s", field)
+		return nil
+	} else {
+		return fmt.Errorf("file is not a project")
 	}
 	
 	return nil
@@ -925,6 +987,75 @@ func (m *Model) updateCurrentTaskStatus(newStatus string) error {
 // deleteFile deletes a file from the filesystem
 func (m *Model) deleteFile(path string) error {
 	return os.Remove(path)
+}
+
+// findTasksAffectedByProjectDeletion finds all tasks that reference the current project
+func (m *Model) findTasksAffectedByProjectDeletion() {
+	if m.viewingProject == nil {
+		return
+	}
+	
+	m.affectedTasks = []denote.Task{}
+	projectID := m.viewingProject.File.ID
+	
+	// Go through all task files and find ones assigned to this project
+	for _, file := range m.files {
+		if file.IsTask() {
+			// Check if we have metadata cached
+			if task, ok := m.taskMetadata[file.Path]; ok {
+				if task.TaskMetadata.ProjectID == projectID {
+					m.affectedTasks = append(m.affectedTasks, *task)
+				}
+			} else {
+				// Load metadata to check
+				if task, err := denote.ParseTaskFile(file.Path); err == nil {
+					m.taskMetadata[file.Path] = task
+					if task.TaskMetadata.ProjectID == projectID {
+						m.affectedTasks = append(m.affectedTasks, *task)
+					}
+				}
+			}
+		}
+	}
+}
+
+// clearProjectFromTask removes the project_id from a task
+func (m *Model) clearProjectFromTask(taskPath string) error {
+	// Read the file content
+	content, err := os.ReadFile(taskPath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+	
+	// Parse existing frontmatter
+	fm, err := denote.ParseFrontmatterFile(content)
+	if err != nil {
+		return fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+	
+	// Update the metadata
+	if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
+		// Clear the project ID
+		taskMeta.ProjectID = ""
+		
+		// Write updated content
+		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
+		if err != nil {
+			return fmt.Errorf("failed to write frontmatter: %w", err)
+		}
+		
+		// Write to file
+		if err := os.WriteFile(taskPath, newContent, 0644); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+		
+		// Update cached metadata
+		if task, ok := m.taskMetadata[taskPath]; ok {
+			task.TaskMetadata.ProjectID = ""
+		}
+	}
+	
+	return nil
 }
 
 // updateProjectTaskStatus updates the status of the currently selected task in project view

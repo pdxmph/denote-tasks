@@ -472,6 +472,23 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.reverseSort = !m.reverseSort
 		m.sortFiles()
 		
+	case "p":
+		// Toggle project filter
+		m.projectFilter = !m.projectFilter
+		if m.projectFilter {
+			m.statusMsg = "Showing projects only"
+			// Clear state filter when switching to projects
+			m.stateFilter = ""
+		} else {
+			m.statusMsg = "Showing all tasks"
+			// Restore active filter when going back to tasks
+			m.stateFilter = "active"
+		}
+		m.cursor = 0
+		m.applyFilters()
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		
 	case "t":
 		// Toggle back to Notes mode
 		m.viewMode = ViewModeNotes
@@ -479,6 +496,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 		// Clear task-specific filters when leaving task mode
 		m.stateFilter = ""
+		m.projectFilter = false
 		m.applyFilters()
 		m.sortFiles()
 		m.loadVisibleMetadata()
@@ -677,41 +695,74 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleConfirmDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Determine which mode to return to
 	returnMode := ModeNormal
-	if m.projectViewTab == 1 && m.viewingProject != nil {
+	if m.viewingProject != nil {
 		returnMode = ModeProjectView
 	}
 	
 	switch msg.String() {
 	case "y", "Y":
-		// Confirm delete
-		var filePath, fileTitle string
-		
-		if returnMode == ModeProjectView {
-			// Delete from project view
+		// Handle project deletion specially
+		if m.projectViewTab == 0 && m.viewingProject != nil {
+			// Delete the project and clear project_id from affected tasks
+			projectPath := m.viewingFile.Path
+			projectTitle := m.viewingProject.ProjectMetadata.Title
+			
+			// First, clear project_id from all affected tasks
+			for _, task := range m.affectedTasks {
+				if err := m.clearProjectFromTask(task.File.Path); err != nil {
+					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
+					m.mode = returnMode
+					return m, nil
+				}
+			}
+			
+			// Then delete the project file
+			if err := m.deleteFile(projectPath); err != nil {
+				m.statusMsg = fmt.Sprintf("Error deleting project: %v", err)
+			} else {
+				m.statusMsg = fmt.Sprintf("Deleted project: %s", projectTitle)
+				if len(m.affectedTasks) > 0 {
+					m.statusMsg += fmt.Sprintf(" (cleared from %d tasks)", len(m.affectedTasks))
+				}
+				// Go back to main task list
+				m.mode = ModeNormal
+				m.viewingProject = nil
+				m.viewingFile = nil
+				m.affectedTasks = nil
+				// Rescan files
+				m.scanFiles()
+				return m, nil
+			}
+		} else if m.projectViewTab == 1 && m.viewingProject != nil {
+			// Delete task from project view
 			if m.projectTasksCursor < len(m.projectTasks) {
 				task := m.projectTasks[m.projectTasksCursor]
-				filePath = task.File.Path
-				fileTitle = task.TaskMetadata.Title
+				filePath := task.File.Path
+				fileTitle := task.TaskMetadata.Title
+				
+				if err := m.deleteFile(filePath); err != nil {
+					m.statusMsg = fmt.Sprintf("Error deleting: %v", err)
+				} else {
+					m.statusMsg = fmt.Sprintf("Deleted: %s", fileTitle)
+					// Rescan files after deletion
+					m.scanFiles()
+					// Reload project tasks
+					m.loadProjectTasks()
+				}
 			}
 		} else {
 			// Delete from normal view
 			if m.cursor < len(m.filtered) {
 				file := m.filtered[m.cursor]
-				filePath = file.Path
-				fileTitle = file.Title
-			}
-		}
-		
-		if filePath != "" {
-			if err := m.deleteFile(filePath); err != nil {
-				m.statusMsg = fmt.Sprintf("Error deleting: %v", err)
-			} else {
-				m.statusMsg = fmt.Sprintf("Deleted: %s", fileTitle)
-				// Rescan files after deletion
-				m.scanFiles()
-				// Reload project tasks if in project view
-				if returnMode == ModeProjectView {
-					m.loadProjectTasks()
+				filePath := file.Path
+				fileTitle := file.Title
+				
+				if err := m.deleteFile(filePath); err != nil {
+					m.statusMsg = fmt.Sprintf("Error deleting: %v", err)
+				} else {
+					m.statusMsg = fmt.Sprintf("Deleted: %s", fileTitle)
+					// Rescan files after deletion
+					m.scanFiles()
 				}
 			}
 		}
@@ -721,6 +772,8 @@ func (m Model) handleConfirmDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Cancel delete
 		m.mode = returnMode
 		m.statusMsg = "Delete cancelled"
+		// Clear affected tasks list
+		m.affectedTasks = nil
 	}
 	
 	return m, nil

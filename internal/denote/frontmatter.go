@@ -55,23 +55,55 @@ func ParseFrontmatterFile(content []byte) (*FrontmatterFile, error) {
 	frontmatterStr := strings.Join(frontmatterLines, "\n")
 	contentLines := lines[endIndex+1:]
 	
-	// Try to parse as different types based on content
-	// First try task (check for index_id)
-	var taskMeta TaskMetadata
-	if err := yaml.Unmarshal([]byte(frontmatterStr), &taskMeta); err == nil && taskMeta.IndexID > 0 {
-		return &FrontmatterFile{
-			Metadata: taskMeta,
-			Content:  strings.Join(contentLines, "\n"),
-		}, nil
+	// First check the type field to determine what kind of metadata this is
+	var typeCheck struct {
+		Type    string `yaml:"type"`
+		IndexID int    `yaml:"index_id"`
 	}
-	
-	// Then try project (check for index_id)
-	var projectMeta ProjectMetadata
-	if err := yaml.Unmarshal([]byte(frontmatterStr), &projectMeta); err == nil && projectMeta.IndexID > 0 {
-		return &FrontmatterFile{
-			Metadata: projectMeta,
-			Content:  strings.Join(contentLines, "\n"),
-		}, nil
+	if err := yaml.Unmarshal([]byte(frontmatterStr), &typeCheck); err == nil {
+		// If type is explicitly set, use that
+		if typeCheck.Type == "project" {
+			var projectMeta ProjectMetadata
+			if err := yaml.Unmarshal([]byte(frontmatterStr), &projectMeta); err == nil {
+				return &FrontmatterFile{
+					Metadata: projectMeta,
+					Content:  strings.Join(contentLines, "\n"),
+				}, nil
+			}
+		} else if typeCheck.Type == "task" {
+			var taskMeta TaskMetadata
+			if err := yaml.Unmarshal([]byte(frontmatterStr), &taskMeta); err == nil {
+				return &FrontmatterFile{
+					Metadata: taskMeta,
+					Content:  strings.Join(contentLines, "\n"),
+				}, nil
+			}
+		}
+		
+		// If no type but has index_id, try to determine by other means
+		if typeCheck.IndexID > 0 {
+			// Try project first (they're less common)
+			var projectMeta ProjectMetadata
+			if err := yaml.Unmarshal([]byte(frontmatterStr), &projectMeta); err == nil {
+				// Check if it has project-specific fields or patterns
+				// For now, we'll need another way to distinguish
+				// Let's check if the content suggests it's a project
+				// This is a bit fragile but necessary without explicit type
+				return &FrontmatterFile{
+					Metadata: projectMeta,
+					Content:  strings.Join(contentLines, "\n"),
+				}, nil
+			}
+			
+			// Fall back to task
+			var taskMeta TaskMetadata
+			if err := yaml.Unmarshal([]byte(frontmatterStr), &taskMeta); err == nil {
+				return &FrontmatterFile{
+					Metadata: taskMeta,
+					Content:  strings.Join(contentLines, "\n"),
+				}, nil
+			}
+		}
 	}
 	
 	// Default to note metadata

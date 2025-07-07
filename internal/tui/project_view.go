@@ -47,6 +47,17 @@ func (m Model) renderProjectView() string {
 	}
 	sections = append(sections, content)
 	
+	// Status message or edit prompt - JUST LIKE TASK VIEW
+	if m.editingField != "" {
+		prompt := fmt.Sprintf("\n%s %s", m.statusMsg, m.editBuffer)
+		if m.editingField != "" {
+			prompt += "█"
+		}
+		sections = append(sections, editingStyle.Render(prompt))
+	} else if m.statusMsg != "" {
+		sections = append(sections, "\n"+statusStyle.Render(m.statusMsg))
+	}
+	
 	// Footer with hints
 	hints := m.getProjectViewHints()
 	footer := "\n" + hintStyle.Render(strings.Join(hints, " • "))
@@ -84,7 +95,7 @@ func (m Model) renderProjectOverview() string {
 	var lines []string
 	
 	// Project metadata (similar to task view)
-	lines = append(lines, m.renderField("Title", meta.Title, ""))
+	lines = append(lines, m.renderField("Title", meta.Title, "t"))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -259,11 +270,14 @@ func (m Model) renderProjectTaskLine(index int, task denote.Task) string {
 	isOverdue := false
 	if task.TaskMetadata.DueDate != "" {
 		if denote.IsOverdue(task.TaskMetadata.DueDate) {
-			due = fmt.Sprintf(" [DUE: %s!]", task.TaskMetadata.DueDate)
+			// Red for overdue
+			due = " " + overdueStyle.Render(fmt.Sprintf("[%s]", task.TaskMetadata.DueDate))
 			isOverdue = true
-		} else if denote.IsDueThisWeek(task.TaskMetadata.DueDate) {
-			due = fmt.Sprintf(" [Due: %s]", task.TaskMetadata.DueDate)
+		} else if denote.IsDueSoon(task.TaskMetadata.DueDate, m.config.SoonHorizon) {
+			// Orange for soon
+			due = " " + lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(fmt.Sprintf("[%s]", task.TaskMetadata.DueDate))
 		} else {
+			// Normal color for future
 			due = fmt.Sprintf(" [%s]", task.TaskMetadata.DueDate)
 		}
 	}
@@ -333,11 +347,13 @@ func (m Model) getProjectViewHints() []string {
 	if m.projectViewTab == 0 {
 		// Overview tab hints
 		hints = append(hints,
+			"t:title",
 			"p:priority",
 			"s:status",
 			"d:due date",
 			"a:area",
 			"g:tags",
+			"x:delete",
 		)
 	} else {
 		// Tasks tab hints

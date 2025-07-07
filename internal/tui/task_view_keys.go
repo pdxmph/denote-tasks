@@ -100,12 +100,18 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.viewingTask = nil
 			m.viewingFile = &m.viewingProject.File
 			m.returnToProject = false
+			// Re-sort project tasks in case metadata changed
+			m.loadProjectTasks()
 		} else {
 			// Return to normal task list
 			m.mode = ModeNormal
 			m.viewingTask = nil
 			m.viewingProject = nil
 			m.viewingFile = nil
+			// Re-sort the list in case metadata changed
+			m.applyFilters()
+			m.sortFiles()
+			m.loadVisibleMetadata()
 		}
 		
 	case "e":

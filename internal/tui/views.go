@@ -82,7 +82,11 @@ func (m Model) renderHeader() string {
 	// Title shows current mode
 	titleText := "Denote Notes"
 	if m.viewMode == ViewModeTasks {
-		titleText = "Denote Tasks"
+		if m.projectFilter {
+			titleText = "Denote Projects"
+		} else {
+			titleText = "Denote Tasks"
+		}
 	}
 	title := titleStyle.Render(titleText)
 	
@@ -119,7 +123,11 @@ func (m Model) renderHeader() string {
 	// Status line
 	itemType := "notes"
 	if m.viewMode == ViewModeTasks {
-		itemType = "tasks"
+		if m.projectFilter {
+			itemType = "projects"
+		} else {
+			itemType = "tasks"
+		}
 	}
 	status := fmt.Sprintf("%d %s", len(m.filtered), itemType)
 	if len(filterInfo) > 0 {
@@ -139,7 +147,11 @@ func (m Model) renderFileList() string {
 	if len(m.filtered) == 0 {
 		msg := "No notes found"
 		if m.viewMode == ViewModeTasks {
-			msg = "No tasks found"
+			if m.projectFilter {
+				msg = "No projects found"
+			} else {
+				msg = "No tasks found"
+			}
 		}
 		return helpStyle.Render(msg)
 	}
@@ -249,22 +261,62 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	}
 	
 	area := ""
-	if task.TaskMetadata.Area != "" {
+	// Only show area if we're not filtering by area
+	if task.TaskMetadata.Area != "" && m.areaFilter == "" {
 		area = fmt.Sprintf("(%s)", task.TaskMetadata.Area)
+	}
+	
+	// Project name
+	projectName := ""
+	if task.TaskMetadata.ProjectID != "" {
+		// Look up project name from cached metadata or file list
+		for _, f := range m.files {
+			if f.ID == task.TaskMetadata.ProjectID && f.IsProject() {
+				var projTitle string
+				var isActiveProject bool
+				
+				if proj, ok := m.projectMetadata[f.Path]; ok {
+					projTitle = truncate(proj.ProjectMetadata.Title, 15)
+					isActiveProject = (proj.ProjectMetadata.Status == denote.ProjectStatusActive || proj.ProjectMetadata.Status == "")
+				} else {
+					projTitle = truncate(f.Title, 15)
+					isActiveProject = true // Assume active if no metadata
+				}
+				
+				if projTitle != "" {
+					if isActiveProject {
+						cyanStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51"))
+						projectName = cyanStyle.Render("→ " + projTitle)
+					} else {
+						projectName = fmt.Sprintf("→ %s", projTitle)
+					}
+				}
+				break
+			}
+		}
 	}
 	
 	// Due date with consistent width
 	due := ""
 	isOverdue := false
 	if task.TaskMetadata.DueDate != "" {
+		dateStr := fmt.Sprintf("[%s]", task.TaskMetadata.DueDate)
 		if denote.IsOverdue(task.TaskMetadata.DueDate) {
-			due = fmt.Sprintf("[DUE: %s!]", task.TaskMetadata.DueDate)
+			// Red for overdue
+			due = overdueStyle.Render(dateStr)
 			isOverdue = true
-		} else if denote.IsDueThisWeek(task.TaskMetadata.DueDate) {
-			due = fmt.Sprintf("[Due: %s]", task.TaskMetadata.DueDate)
+		} else if denote.IsDueSoon(task.TaskMetadata.DueDate, m.config.SoonHorizon) {
+			// Orange for soon
+			due = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dateStr)
 		} else {
-			due = fmt.Sprintf("[%s]", task.TaskMetadata.DueDate)
+			// Normal color for future
+			due = dateStr
 		}
+		// Pad to consistent width (dates are typically 12 chars [YYYY-MM-DD])
+		due = fmt.Sprintf("%-12s", due)
+	} else {
+		// Empty date placeholder for alignment
+		due = "            "  // 12 spaces
 	}
 	
 	// Tags - filter out 'task' and 'project'
@@ -280,15 +332,17 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	}
 	
 	// Build the line with proper spacing
-	// Note: priority already has color codes, so we use %s instead of fixed width
-	line := fmt.Sprintf("%s %s %s %-30s %-10s %-20s %s", 
+	// Note: priority and due already have color codes, so we use %s instead of fixed width
+	// Format: selector status priority due title tags area project
+	line := fmt.Sprintf("%s %s %s %s  %-50s %-25s %-10s %s", 
 		selector,
 		status, 
 		priority, 
-		truncate(title, 30), 
-		area, 
-		due,  // Now has consistent width of 20
-		truncate(tagStr, 20))
+		due,                     // Right after priority
+		truncate(title, 50),     // Good room for title (with 2 spaces before)
+		truncate(tagStr, 25),    // Tags
+		truncate(area, 10),      // Area (truncated for consistency)
+		projectName)             // Project at the very end
 	
 	// Apply overall styling
 	if index == m.cursor {
@@ -323,8 +377,20 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		selector = ">"
 	}
 	
-	// Format: ▶ [Priority] Title (Area) [Due Date] [Status]
+	// Use same status indicator style as tasks
 	status := "▶" // Project indicator
+	isCompleted := false
+	isActive := false
+	if project.ProjectMetadata.Status == denote.ProjectStatusCompleted {
+		status = "●"
+		isCompleted = true
+	} else if project.ProjectMetadata.Status == denote.ProjectStatusPaused {
+		status = "◐"
+	} else if project.ProjectMetadata.Status == denote.ProjectStatusCancelled {
+		status = "⨯"
+	} else if project.ProjectMetadata.Status == denote.ProjectStatusActive || project.ProjectMetadata.Status == "" {
+		isActive = true
+	}
 	
 	// Priority with color
 	priority := "    " // Default empty space for alignment
@@ -342,8 +408,14 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		title = file.Title
 	}
 	
+	// Truncate title first
+	titleTruncated := truncate(title, 50)
+	
+	// No special styling for status - will be handled at line level
+	
 	area := ""
-	if project.ProjectMetadata.Area != "" {
+	// Only show area if we're not filtering by area
+	if project.ProjectMetadata.Area != "" && m.areaFilter == "" {
 		area = fmt.Sprintf("(%s)", project.ProjectMetadata.Area)
 	}
 	
@@ -351,27 +423,23 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	due := ""
 	isOverdue := false
 	if project.ProjectMetadata.DueDate != "" {
+		dateStr := fmt.Sprintf("[%s]", project.ProjectMetadata.DueDate)
 		if denote.IsOverdue(project.ProjectMetadata.DueDate) {
-			due = fmt.Sprintf("[DUE: %s!]", project.ProjectMetadata.DueDate)
+			// Red for overdue
+			due = overdueStyle.Render(dateStr)
 			isOverdue = true
-		} else if denote.IsDueThisWeek(project.ProjectMetadata.DueDate) {
-			due = fmt.Sprintf("[Due: %s]", project.ProjectMetadata.DueDate)
+		} else if denote.IsDueSoon(project.ProjectMetadata.DueDate, m.config.SoonHorizon) {
+			// Orange for soon
+			due = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dateStr)
 		} else {
-			due = fmt.Sprintf("[%s]", project.ProjectMetadata.DueDate)
+			// Normal color for future
+			due = dateStr
 		}
-	}
-	
-	// Status badge - make it shorter to fit with due date
-	statusBadge := ""
-	switch project.ProjectMetadata.Status {
-	case denote.ProjectStatusActive:
-		statusBadge = "[ACT]"
-	case denote.ProjectStatusCompleted:
-		statusBadge = "[DONE]"
-	case denote.ProjectStatusPaused:
-		statusBadge = "[PAUSE]"
-	case denote.ProjectStatusCancelled:
-		statusBadge = "[CANCEL]"
+		// Pad to consistent width
+		due = fmt.Sprintf("%-12s", due)
+	} else {
+		// Empty date placeholder for alignment
+		due = "            "  // 12 spaces
 	}
 	
 	// Tags - filter out 'task' and 'project'
@@ -386,28 +454,42 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		tagStr = fmt.Sprintf("[%s]", strings.Join(displayTags, ", "))
 	}
 	
-	// Build the line - with consistent spacing for all fields
-	line := fmt.Sprintf("%s %s %s %-25s %-8s %-20s %-8s %s", 
-		selector,
-		status,
-		priority,
-		truncate(title, 25),
-		area,
-		due,  // Now has consistent width of 20
-		statusBadge,
-		truncate(tagStr, 15))
 	
-	// Apply styling with priority colors
+	// Build the line - exactly matching task format
+	// Format: selector status priority due title tags area project
+	line := fmt.Sprintf("%s %s %s %s  %-50s %-25s %-10s %s", 
+		selector,
+		status, 
+		priority, 
+		due,                     // Right after priority
+		titleTruncated,          // Title truncated but not styled yet
+		truncate(tagStr, 25),    // Tags - same truncation as tasks
+		truncate(area, 10),      // Same as tasks
+		"")                      // Empty project field
+	
+	// No project field for projects themselves
+	
+	// Apply styling
 	if index == m.cursor {
 		return selectedStyle.Render(line)
+	} else if isCompleted {
+		return doneStyle.Render(line)
 	} else if isOverdue {
 		return overdueStyle.Render(line)
+	} else if isActive {
+		// Apply cyan to the whole line for active projects
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(line)
 	}
 	
-	// No need to apply priority coloring to the whole line anymore
-	// since we colored the priority badge directly
+	// Default styling for other statuses
+	switch project.ProjectMetadata.Status {
+	case denote.ProjectStatusPaused:
+		return pausedStyle.Render(line)
+	case denote.ProjectStatusCancelled:
+		return droppedStyle.Render(line)
+	}
 	
-	return projectStyle.Render(line)
+	return baseStyle.Render(line)
 }
 
 func (m Model) renderFooter() string {
@@ -430,6 +512,7 @@ func (m Model) renderFooter() string {
 			"x:delete",
 			"e:edit",
 			"f:filter",
+			"p:projects",
 			"S:sort",
 			"t:notes mode",
 			"?:help",
@@ -477,6 +560,7 @@ Task Actions:
   u       Update task metadata
   /       Fuzzy search (use #tag for tag search)
   f       Filter menu (area/priority/state/soon)
+  p       Toggle projects view
   S       Sort options menu (uppercase S)
   r       Toggle sort order
   t       Switch to Notes mode
@@ -640,6 +724,63 @@ Change to:
 }
 
 func (m Model) renderConfirmDelete() string {
+	// Handle project deletion from project view
+	if m.viewingProject != nil && m.projectViewTab == 0 && m.mode == ModeConfirmDelete {
+		prompt := titleStyle.Render("Confirm Project Deletion")
+		
+		warning := baseStyle.Render(fmt.Sprintf("\nAre you sure you want to delete project: %s?", m.viewingProject.ProjectMetadata.Title))
+		
+		// Show affected tasks if any
+		affectedInfo := ""
+		if len(m.affectedTasks) > 0 {
+			affectedInfo = fmt.Sprintf("\n\n⚠️  This will affect %d task(s):", len(m.affectedTasks))
+			for i, task := range m.affectedTasks {
+				if i < 10 { // Show first 10 tasks
+					affectedInfo += fmt.Sprintf("\n  • %s", task.TaskMetadata.Title)
+				} else if i == 10 {
+					affectedInfo += fmt.Sprintf("\n  ... and %d more", len(m.affectedTasks)-10)
+					break
+				}
+			}
+			affectedInfo += "\n\nThe project_id will be removed from these tasks."
+		}
+		
+		options := `
+
+  (y) Yes, delete project and clear task associations
+  (n) No, cancel
+  
+  This action cannot be undone!`
+		
+		dangerStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
+		
+		return prompt + warning + affectedInfo + "\n" + dangerStyle.Render(options)
+	}
+	
+	// Handle task deletion from project view
+	if m.viewingProject != nil && m.projectViewTab == 1 && len(m.projectTasks) > 0 && m.mode == ModeConfirmDelete {
+		task := m.projectTasks[m.projectTasksCursor]
+		prompt := titleStyle.Render("Confirm Delete")
+		warning := baseStyle.Render("\nAre you sure you want to delete this task?")
+		fileName := baseStyle.Render(fmt.Sprintf("\n\nTask: %s", task.TaskMetadata.Title))
+		
+		options := `
+
+  (y) Yes, delete
+  (n) No, cancel
+  
+  This action cannot be undone!`
+		
+		dangerStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
+		
+		return prompt + warning + fileName + "\n" + dangerStyle.Render(options)
+	}
+	
+	// Handle normal deletion
 	if m.cursor >= len(m.filtered) {
 		return "No item selected"
 	}

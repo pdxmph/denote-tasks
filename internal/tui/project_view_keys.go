@@ -10,6 +10,84 @@ import (
 )
 
 func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle editing mode first - EXACTLY like task view
+	if m.editingField != "" {
+		switch msg.String() {
+		case "esc":
+			m.editingField = ""
+			m.editBuffer = ""
+			
+		case "enter":
+			// Handle project field updates - map single letters to field names
+			fieldMap := map[string]string{
+				"t": "title",
+				"p": "priority",
+				"s": "status",
+				"d": "due_date",
+				"a": "area",
+				"g": "tags",
+			}
+			
+			if fieldName, ok := fieldMap[m.editingField]; ok {
+				var updateErr error
+				var updateValue string
+				
+				switch m.editingField {
+				case "p":
+					if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
+						updateValue = "p" + m.editBuffer
+					} else {
+						m.statusMsg = "Priority must be 1, 2, or 3"
+						m.editingField = ""
+						m.editBuffer = ""
+						return m, nil
+					}
+				default:
+					updateValue = m.editBuffer
+				}
+				
+				updateErr = m.updateProjectField(fieldName, updateValue)
+				
+				if updateErr != nil {
+					m.statusMsg = fmt.Sprintf("Error: %v", updateErr)
+				} else {
+					m.statusMsg = fmt.Sprintf("Updated %s", fieldName)
+					
+					// Force reload the project from disk to ensure we show the updated data
+					if project, err := denote.ParseProjectFile(m.viewingFile.Path); err == nil {
+						m.viewingProject = project
+						m.projectMetadata[m.viewingFile.Path] = project
+						// Update the file title if it changed
+						if project.ProjectMetadata.Title != "" {
+							m.viewingFile.Title = project.ProjectMetadata.Title
+						}
+					}
+					
+					// Re-sort if we updated a field that could affect order
+					if m.editingField == "d" || m.editingField == "p" {
+						m.applyFilters()
+						m.sortFiles()
+						m.loadVisibleMetadata()
+					}
+				}
+			}
+			m.editingField = ""
+			m.editBuffer = ""
+			
+		case "backspace":
+			if len(m.editBuffer) > 0 {
+				m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+			}
+			
+		default:
+			if len(msg.String()) == 1 {
+				m.editBuffer += msg.String()
+			}
+		}
+		return m, nil
+	}
+	
+	// Normal navigation when not editing
 	switch msg.String() {
 	case "q", "esc":
 		m.mode = ModeNormal
@@ -18,6 +96,11 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.projectTasks = nil
 		m.projectTasksCursor = 0
 		m.projectViewTab = 0
+		m.affectedTasks = nil
+		// Re-sort the list in case metadata changed
+		m.applyFilters()
+		m.sortFiles()
+		m.loadVisibleMetadata()
 		
 	case "tab":
 		// Switch between tabs
@@ -35,48 +118,55 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "No editor configured"
 		}
 		
-	// Keys for overview tab
+	// Field edit hotkeys - work on overview tab
+	case "t":
+		if m.projectViewTab == 0 {
+			m.editingField = "t"  // Title
+			m.editBuffer = m.viewingProject.ProjectMetadata.Title
+			m.statusMsg = "Enter title:"
+		}
+		
 	case "p":
-		if m.projectViewTab == 0 && m.editingField != "p" {
-			m.editingField = "p"
-			m.editBuffer = m.viewingProject.ProjectMetadata.Priority
-			m.statusMsg = "Edit priority (p1/p2/p3): "
+		if m.projectViewTab == 0 {
+			m.editingField = "p"  // Use single letter like renderField expects
+			m.editBuffer = strings.TrimPrefix(m.viewingProject.ProjectMetadata.Priority, "p")
+			m.statusMsg = "Enter priority (1/2/3):"
 		}
 		
 	case "s":
-		if m.projectViewTab == 0 && m.editingField != "s" {
-			m.editingField = "s"
+		if m.projectViewTab == 0 {
+			m.editingField = "s"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Status
-			m.statusMsg = "Edit status (active/completed/paused/cancelled): "
-		} else if m.projectViewTab == 1 && len(m.projectTasks) > 0 && m.editingField == "" {
+			m.statusMsg = "Enter status (active/completed/paused/cancelled):"
+		} else if m.projectViewTab == 1 && len(m.projectTasks) > 0 {
 			// In tasks tab, 's' opens state menu
 			m.mode = ModeStateMenu
 			return m, nil
 		}
 		
 	case "d":
-		if m.projectViewTab == 0 && m.editingField != "d" {
-			m.editingField = "d"
+		if m.projectViewTab == 0 {
+			m.editingField = "d"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.DueDate
-			m.statusMsg = "Edit due date (YYYY-MM-DD or relative: 1d, 1w, tomorrow): "
+			m.statusMsg = "Enter due date (YYYY-MM-DD or relative: 1d, 1w, tomorrow):"
 		}
 		
 	case "a":
-		if m.projectViewTab == 0 && m.editingField != "a" {
-			m.editingField = "a"
+		if m.projectViewTab == 0 {
+			m.editingField = "a"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Area
-			m.statusMsg = "Edit area: "
+			m.statusMsg = "Enter area:"
 		}
 		
 	case "g":
-		if m.projectViewTab == 0 && m.editingField != "g" {
-			m.editingField = "g"
+		if m.projectViewTab == 0 {
+			m.editingField = "g"  // Use single letter
 			if len(m.viewingProject.ProjectMetadata.Tags) > 0 {
 				m.editBuffer = strings.Join(m.viewingProject.ProjectMetadata.Tags, " ")
 			} else {
 				m.editBuffer = ""
 			}
-			m.statusMsg = "Edit tags (space-separated): "
+			m.statusMsg = "Enter tags (space-separated):"
 		}
 		
 	// Keys for tasks tab
@@ -116,39 +206,16 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 	case "x":
-		// Delete task (in tasks tab)
+		// Delete task (in tasks tab) or project (in overview tab)
 		if m.projectViewTab == 1 && len(m.projectTasks) > 0 {
+			// Deleting a task
 			m.mode = ModeConfirmDelete
 			return m, nil
-		}
-	}
-	
-	// Handle editing mode
-	if m.editingField != "" {
-		switch msg.String() {
-		case "esc":
-			m.editingField = ""
-			m.editBuffer = ""
-			m.statusMsg = ""
-			
-		case "enter":
-			if err := m.updateProjectFieldValue(m.editingField, m.editBuffer); err != nil {
-				m.statusMsg = fmt.Sprintf("Error: %v", err)
-			} else {
-				m.statusMsg = "Updated"
-			}
-			m.editingField = ""
-			m.editBuffer = ""
-			
-		case "backspace":
-			if len(m.editBuffer) > 0 {
-				m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
-			}
-			
-		default:
-			if len(msg.String()) == 1 {
-				m.editBuffer += msg.String()
-			}
+		} else if m.projectViewTab == 0 {
+			// Deleting the project itself - find affected tasks first
+			m.findTasksAffectedByProjectDeletion()
+			m.mode = ModeConfirmDelete
+			return m, nil
 		}
 	}
 	
@@ -195,73 +262,3 @@ func (m *Model) updateTaskPriorityFromProject(task *denote.Task, priority string
 	return nil
 }
 
-// updateProjectFieldValue updates a specific field in the project metadata
-func (m *Model) updateProjectFieldValue(field, value string) error {
-	if m.viewingProject == nil || m.viewingFile == nil {
-		return fmt.Errorf("no project selected")
-	}
-	
-	// Read the file content
-	content, err := os.ReadFile(m.viewingFile.Path)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-	
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
-	}
-	
-	// Update the specific field
-	if projMeta, ok := fm.Metadata.(denote.ProjectMetadata); ok {
-		switch field {
-		case "p":
-			projMeta.Priority = value
-		case "s":
-			projMeta.Status = value
-		case "d":
-			// Parse the date
-			if value != "" {
-				parsedDate, err := denote.ParseNaturalDate(value)
-				if err != nil {
-					return fmt.Errorf("invalid date: %w", err)
-				}
-				projMeta.DueDate = parsedDate
-			} else {
-				projMeta.DueDate = ""
-			}
-		case "a":
-			projMeta.Area = value
-		case "g":
-			if value == "" {
-				projMeta.Tags = []string{}
-			} else {
-				projMeta.Tags = strings.Fields(value)
-			}
-		default:
-			return fmt.Errorf("unknown field: %s", field)
-		}
-		
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(projMeta, fm.Content)
-		if err != nil {
-			return fmt.Errorf("failed to write frontmatter: %w", err)
-		}
-		
-		// Write to file
-		if err := os.WriteFile(m.viewingFile.Path, newContent, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-		
-		// Update our in-memory copy
-		m.viewingProject.ProjectMetadata = projMeta
-		
-		// Update in cache
-		if cached, ok := m.projectMetadata[m.viewingFile.Path]; ok {
-			cached.ProjectMetadata = projMeta
-		}
-	}
-	
-	return nil
-}
