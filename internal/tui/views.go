@@ -474,11 +474,11 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		return selectedStyle.Render(line)
 	} else if isCompleted {
 		return doneStyle.Render(line)
+	} else if isActive {
+		// Apply cyan to the whole line for active projects (even if overdue)
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(line)
 	} else if isOverdue {
 		return overdueStyle.Render(line)
-	} else if isActive {
-		// Apply cyan to the whole line for active projects
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(line)
 	}
 	
 	// Default styling for other statuses
