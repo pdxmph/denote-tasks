@@ -58,6 +58,9 @@ var (
 	projectStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("135")). // Purple for projects
 		Bold(true)
+		
+	cyanStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("51"))   // Cyan for active projects
 )
 
 func (m Model) renderNormal() string {
@@ -192,6 +195,11 @@ func (m Model) renderFileLine(index int) string {
 		}
 		if project, ok := m.projectMetadata[file.Path]; ok {
 			return m.renderProjectLine(index, file, project)
+		} else if file.IsProject() {
+			// Project without metadata - show debug
+			line := fmt.Sprintf("%s %s %-15s [NO METADATA] %-40s", 
+				" ", ">", file.ID, truncate(file.Title, 40))
+			return baseStyle.Render(line)
 		}
 		// If we're in task mode but no metadata found, still show the item
 		// This helps with debugging
@@ -285,7 +293,6 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 				
 				if projTitle != "" {
 					if isActiveProject {
-						cyanStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51"))
 						projectName = cyanStyle.Render("→ " + projTitle)
 					} else {
 						projectName = fmt.Sprintf("→ %s", projTitle)
@@ -381,32 +388,43 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	status := "▶" // Project indicator
 	isCompleted := false
 	isActive := false
-	if project.ProjectMetadata.Status == denote.ProjectStatusCompleted {
+	
+	// DEBUG: Check exact status matching
+	switch project.ProjectMetadata.Status {
+	case denote.ProjectStatusCompleted:
 		status = "●"
 		isCompleted = true
-	} else if project.ProjectMetadata.Status == denote.ProjectStatusPaused {
+	case denote.ProjectStatusPaused:
 		status = "◐"
-	} else if project.ProjectMetadata.Status == denote.ProjectStatusCancelled {
+	case denote.ProjectStatusCancelled:
 		status = "⨯"
-	} else if project.ProjectMetadata.Status == denote.ProjectStatusActive || project.ProjectMetadata.Status == "" {
+	case denote.ProjectStatusActive, "":
+		// Active or empty status - both treated as active
 		isActive = true
+		status = "▶" // Keep the project indicator
+	default:
+		// Unexpected status - debug
+		status = "?"
+		// Will add debug to title later after it's defined
 	}
 	
-	// Priority with color
+	// Priority - we'll color it later based on active status
 	priority := "    " // Default empty space for alignment
+	priorityRaw := ""
 	switch project.ProjectMetadata.Priority {
 	case "p1":
-		priority = priorityHighStyle.Render("[p1]")
+		priorityRaw = "[p1]"
 	case "p2":
-		priority = priorityMediumStyle.Render("[p2]")
+		priorityRaw = "[p2]"
 	case "p3":
-		priority = priorityLowStyle.Render("[p3]")
+		priorityRaw = "[p3]"
 	}
 	
 	title := project.ProjectMetadata.Title
 	if title == "" {
 		title = file.Title
 	}
+	
 	
 	// Truncate title first
 	titleTruncated := truncate(title, 50)
@@ -419,27 +437,10 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		area = fmt.Sprintf("(%s)", project.ProjectMetadata.Area)
 	}
 	
-	// Due date with consistent width
-	due := ""
+	// Check if overdue
 	isOverdue := false
 	if project.ProjectMetadata.DueDate != "" {
-		dateStr := fmt.Sprintf("[%s]", project.ProjectMetadata.DueDate)
-		if denote.IsOverdue(project.ProjectMetadata.DueDate) {
-			// Red for overdue
-			due = overdueStyle.Render(dateStr)
-			isOverdue = true
-		} else if denote.IsDueSoon(project.ProjectMetadata.DueDate, m.config.SoonHorizon) {
-			// Orange for soon
-			due = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dateStr)
-		} else {
-			// Normal color for future
-			due = dateStr
-		}
-		// Pad to consistent width
-		due = fmt.Sprintf("%-12s", due)
-	} else {
-		// Empty date placeholder for alignment
-		due = "            "  // 12 spaces
+		isOverdue = denote.IsOverdue(project.ProjectMetadata.DueDate)
 	}
 	
 	// Tags - filter out 'task' and 'project'
@@ -457,14 +458,69 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	
 	// Build the line - exactly matching task format
 	// Format: selector status priority due title tags area project
-	line := fmt.Sprintf("%s %s %s %s  %-50s %-25s %-10s %s", 
+	
+	// For priority, apply the color now
+	if priorityRaw != "" {
+		switch project.ProjectMetadata.Priority {
+		case "p1":
+			priority = priorityHighStyle.Render(priorityRaw)
+		case "p2":
+			priority = priorityMediumStyle.Render(priorityRaw)
+		case "p3":
+			priority = priorityLowStyle.Render(priorityRaw)
+		}
+	}
+	
+	// For due date, we need to pad BEFORE coloring
+	dueDisplay := ""
+	if project.ProjectMetadata.DueDate != "" {
+		dateStr := fmt.Sprintf("[%s]", project.ProjectMetadata.DueDate)
+		// Pad to 12 chars
+		dateStr = fmt.Sprintf("%-12s", dateStr)
+		
+		if denote.IsOverdue(project.ProjectMetadata.DueDate) {
+			dueDisplay = overdueStyle.Render(dateStr)
+		} else if denote.IsDueSoon(project.ProjectMetadata.DueDate, m.config.SoonHorizon) {
+			dueDisplay = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dateStr)
+		} else if isActive {
+			dueDisplay = cyanStyle.Render(dateStr)
+		} else {
+			dueDisplay = dateStr
+		}
+	} else {
+		dueDisplay = "            "  // 12 spaces
+		if isActive {
+			dueDisplay = cyanStyle.Render(dueDisplay)
+		}
+	}
+	
+	// Prepare padded strings BEFORE applying colors
+	titlePadded := fmt.Sprintf("%-50s", titleTruncated)
+	tagsPadded := fmt.Sprintf("%-25s", truncate(tagStr, 25))
+	areaPadded := fmt.Sprintf("%-10s", truncate(area, 10))
+	
+	// Apply cyan to components if active
+	statusDisplay := status
+	titleDisplay := titlePadded
+	tagsDisplay := tagsPadded
+	areaDisplay := areaPadded
+	
+	if isActive {
+		statusDisplay = cyanStyle.Render(status)
+		titleDisplay = cyanStyle.Render(titlePadded)
+		tagsDisplay = cyanStyle.Render(tagsPadded)
+		areaDisplay = cyanStyle.Render(areaPadded)
+	}
+	
+	// Build line with pre-padded, pre-colored components
+	line := fmt.Sprintf("%s %s %s %s  %s %s %s %s", 
 		selector,
-		status, 
+		statusDisplay, 
 		priority, 
-		due,                     // Right after priority
-		titleTruncated,          // Title truncated but not styled yet
-		truncate(tagStr, 25),    // Tags - same truncation as tasks
-		truncate(area, 10),      // Same as tasks
+		dueDisplay,
+		titleDisplay,
+		tagsDisplay,
+		areaDisplay,
 		"")                      // Empty project field
 	
 	// No project field for projects themselves
@@ -474,10 +530,8 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		return selectedStyle.Render(line)
 	} else if isCompleted {
 		return doneStyle.Render(line)
-	} else if isActive {
-		// Apply cyan to the whole line for active projects (even if overdue)
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(line)
-	} else if isOverdue {
+	} else if isOverdue && !isActive {
+		// Only apply overdue style if not active
 		return overdueStyle.Render(line)
 	}
 	

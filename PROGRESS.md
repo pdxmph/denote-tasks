@@ -5,6 +5,35 @@
 Any feature marked as "✅ Completed" means it has been TESTED AND VERIFIED by a human.
 Features that compile but haven't been tested must be marked as "IMPLEMENTED BUT NOT TESTED".
 
+## Session: 2025-01-14 - Extended Task/Project Management Features
+
+### Completed Features (Tested and Working)
+
+1. **✅ Fixed due date sorting** - Was reversed, now shows closest dates first
+2. **✅ Automatic re-sorting after edits** - List re-sorts when due dates change
+3. **✅ Command line filters**:
+   - `-area work` launches with area filter applied
+   - `-projects` launches directly to projects list
+   - `-projects -area work` combines both filters
+4. **✅ Project editing works exactly like task editing** - All hotkeys functional
+5. **✅ Project title editing with file renaming** - Updates slug when title changes
+6. **✅ Safe project deletion** - Clears project_id from affected tasks
+7. **✅ Unified project/task display** - Projects blend seamlessly in task list
+8. **✅ Active projects display in cyan** - Visual distinction for active projects
+9. **✅ Configurable default sorts** - Separate settings for notes/tasks modes
+10. **✅ Separate sort options**:
+    - Notes: created, modified, title
+    - Tasks: due, priority, project, estimate, title, created, modified
+11. **✅ Project sorting** - Groups tasks by project assignment
+12. **✅ Fixed cyan project display** - Active projects now properly show in cyan
+
+### Key Technical Solutions
+
+1. **Sorting Fix**: Changed from checking map values to using pointer receiver for updates
+2. **Project Detection**: Fixed ParseFrontmatterFile to check type field first
+3. **Alignment Issues**: Pad strings BEFORE applying ANSI color codes
+4. **Cyan Styling**: Apply to individual components, not whole line (due to embedded colors)
+
 ## Session: 2025-01-13 - Project View Implementation
 
 ### What Was Done
