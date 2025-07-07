@@ -19,8 +19,12 @@ func Run(cfg *config.Config, areaFilter string, showProjects bool) error {
 		// Show projects list
 		model.viewMode = ViewModeTasks  // Switch to task mode
 		model.projectFilter = true      // Filter to show only projects
-		model.sortBy = "due"            // Sort by due date
-		model.reverseSort = false       // Ascending order (earliest due dates first)
+		// Use configured defaults for tasks
+		model.sortBy = cfg.Tasks.SortBy
+		if model.sortBy == "" {
+			model.sortBy = "due"
+		}
+		model.reverseSort = cfg.Tasks.SortOrder == "reverse"
 		
 		// Apply area filter if also provided
 		if areaFilter != "" {
@@ -35,8 +39,12 @@ func Run(cfg *config.Config, areaFilter string, showProjects bool) error {
 		model.areaFilter = areaFilter
 		model.viewMode = ViewModeTasks  // Switch to task mode
 		model.stateFilter = "active"    // Apply active filter
-		model.sortBy = "due"            // Sort by due date
-		model.reverseSort = false       // Ascending order (earliest due dates first)
+		// Use configured defaults for tasks
+		model.sortBy = cfg.Tasks.SortBy
+		if model.sortBy == "" {
+			model.sortBy = "due"
+		}
+		model.reverseSort = cfg.Tasks.SortOrder == "reverse"
 		model.applyFilters()
 		model.sortFiles()               // Apply the sort after filters
 		model.loadVisibleMetadata()     // Load metadata for visible items

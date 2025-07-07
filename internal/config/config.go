@@ -10,16 +10,30 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	NotesDirectory string    `toml:"notes_directory"`
-	Editor         string    `toml:"editor"`
-	DefaultArea    string    `toml:"default_area"`
-	SoonHorizon    int       `toml:"soon_horizon"`  // Days for "soon" filter, default 3
-	TUI            TUIConfig `toml:"tui"`
+	NotesDirectory string       `toml:"notes_directory"`
+	Editor         string       `toml:"editor"`
+	DefaultArea    string       `toml:"default_area"`
+	SoonHorizon    int          `toml:"soon_horizon"`  // Days for "soon" filter, default 3
+	TUI            TUIConfig    `toml:"tui"`
+	Notes          NotesConfig  `toml:"notes"`
+	Tasks          TasksConfig  `toml:"tasks"`
 }
 
 // TUIConfig represents TUI-specific settings
 type TUIConfig struct {
 	Theme string `toml:"theme"`
+}
+
+// NotesConfig represents notes mode specific settings
+type NotesConfig struct {
+	SortBy    string `toml:"sort_by"`    // modified, created, title
+	SortOrder string `toml:"sort_order"` // normal, reverse
+}
+
+// TasksConfig represents tasks mode specific settings
+type TasksConfig struct {
+	SortBy    string `toml:"sort_by"`    // due, priority, estimate, title, created
+	SortOrder string `toml:"sort_order"` // normal, reverse
 }
 
 // DefaultConfig returns default configuration
@@ -32,6 +46,14 @@ func DefaultConfig() *Config {
 		SoonHorizon:    3,  // Default to 3 days
 		TUI: TUIConfig{
 			Theme: "default",
+		},
+		Notes: NotesConfig{
+			SortBy:    "modified",
+			SortOrder: "reverse", // Most recently modified first
+		},
+		Tasks: TasksConfig{
+			SortBy:    "due",
+			SortOrder: "normal", // Closest due dates first
 		},
 	}
 }
@@ -134,6 +156,44 @@ func (c *Config) Validate() error {
 	}
 	if !themeValid {
 		return fmt.Errorf("invalid theme: %s", c.TUI.Theme)
+	}
+
+	// Validate notes sort options
+	if c.Notes.SortBy != "" {
+		validNoteSorts := []string{"modified", "created", "title", "date"}
+		valid := false
+		for _, sort := range validNoteSorts {
+			if c.Notes.SortBy == sort {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("invalid notes sort_by: %s (valid: modified, created, title)", c.Notes.SortBy)
+		}
+	}
+	
+	if c.Notes.SortOrder != "" && c.Notes.SortOrder != "normal" && c.Notes.SortOrder != "reverse" {
+		return fmt.Errorf("invalid notes sort_order: %s (valid: normal, reverse)", c.Notes.SortOrder)
+	}
+
+	// Validate tasks sort options
+	if c.Tasks.SortBy != "" {
+		validTaskSorts := []string{"due", "priority", "estimate", "title", "created", "date"}
+		valid := false
+		for _, sort := range validTaskSorts {
+			if c.Tasks.SortBy == sort {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("invalid tasks sort_by: %s (valid: due, priority, estimate, title, created)", c.Tasks.SortBy)
+		}
+	}
+	
+	if c.Tasks.SortOrder != "" && c.Tasks.SortOrder != "normal" && c.Tasks.SortOrder != "reverse" {
+		return fmt.Errorf("invalid tasks sort_order: %s (valid: normal, reverse)", c.Tasks.SortOrder)
 	}
 
 	return nil

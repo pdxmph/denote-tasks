@@ -119,14 +119,16 @@ func (m Model) handleNormalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.viewMode = ViewModeTasks
 		m.statusMsg = "Task Mode"
 		m.cursor = 0
-		// Default to due date sort for tasks
-		m.sortBy = "due"
-		m.reverseSort = false // Closest due dates first
+		// Use configured defaults for tasks
+		m.sortBy = m.config.Tasks.SortBy
+		if m.sortBy == "" {
+			m.sortBy = "due"
+		}
+		m.reverseSort = m.config.Tasks.SortOrder == "reverse"
 		// Default to "active" filter (open + delegated)
 		m.stateFilter = "active"
 		m.applyFilters()
 		m.sortFiles()
-		m.loadVisibleMetadata()
 		m.loadVisibleMetadata()
 		
 	case "x", "delete":
@@ -494,6 +496,15 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.viewMode = ViewModeNotes
 		m.statusMsg = "Notes Mode"
 		m.cursor = 0
+		// Use configured defaults for notes
+		m.sortBy = m.config.Notes.SortBy
+		if m.sortBy == "modified" || m.sortBy == "created" {
+			m.sortBy = "date"
+		}
+		if m.sortBy == "" {
+			m.sortBy = "date"
+		}
+		m.reverseSort = m.config.Notes.SortOrder == "reverse"
 		// Clear task-specific filters when leaving task mode
 		m.stateFilter = ""
 		m.projectFilter = false

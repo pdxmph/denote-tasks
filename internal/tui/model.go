@@ -116,12 +116,21 @@ type fileEditedMsg struct {
 }
 
 func NewModel(cfg *config.Config) (*Model, error) {
+	// Use configured defaults for notes mode
+	reverseSort := cfg.Notes.SortOrder == "reverse"
+	sortBy := cfg.Notes.SortBy
+	
+	// Map "modified" and "created" to "date" for backward compatibility
+	if sortBy == "modified" || sortBy == "created" {
+		sortBy = "date"
+	}
+	
 	m := &Model{
 		config:          cfg,
 		mode:            ModeNormal,
 		viewMode:        ViewModeNotes, // Start in Notes mode
-		sortBy:          "date",
-		reverseSort:     true, // Newest first by default
+		sortBy:          sortBy,
+		reverseSort:     reverseSort,
 		taskMetadata:    make(map[string]*denote.Task),
 		projectMetadata: make(map[string]*denote.Project),
 	}
