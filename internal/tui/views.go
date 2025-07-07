@@ -674,14 +674,17 @@ func (m Model) renderSort() string {
 	if m.viewMode == ViewModeTasks {
 		options += `
   (d) Due date
-  (p) Priority  
+  (p) Priority
+  (j) Project
   (e) Estimate
   (t) Title
-  (c) Created date`
+  (c) Created date
+  (m) Modified date`
 	} else {
 		options += `
   (t) Title
-  (c) Created date`
+  (c) Created date
+  (m) Modified date`
 	}
 	
 	options += `

@@ -19,10 +19,10 @@ theme = "default"  # Options: default, dark, light, high-contrast, minimal
 
 # Optional: Notes mode default sort settings
 [notes]
-sort_by = "modified"    # Options: modified, created, title
+sort_by = "modified"    # Options: created, modified, title
 sort_order = "reverse"  # Options: normal, reverse (reverse = newest first)
 
 # Optional: Tasks mode default sort settings
 [tasks]
-sort_by = "due"        # Options: due, priority, estimate, title, created
+sort_by = "due"        # Options: due, priority, project, estimate, title, created, modified
 sort_order = "normal"  # Options: normal, reverse (normal = closest due dates first)

@@ -2,6 +2,7 @@ package denote
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -38,6 +39,11 @@ func (s *Scanner) FindAllNotes() ([]File, error) {
 		}
 		
 		file.Path = path
+		
+		// Get file modification time
+		if info, err := os.Stat(path); err == nil {
+			file.ModTime = info.ModTime()
+		}
 		
 		// Try to get title from frontmatter
 		if metadata, err := parser.ParseFrontmatter(path); err == nil && metadata != nil {
@@ -194,13 +200,30 @@ func reverseTaskSlice(tasks []*Task) {
 	}
 }
 
-// SortFiles sorts File slices by various criteria
+// SortFiles sorts File slices by various criteria (for notes mode)
 func SortFiles(files []File, sortBy string, reverse bool) {
 	switch sortBy {
 	case "title":
 		sort.Slice(files, func(i, j int) bool {
 			return strings.ToLower(files[i].Title) < strings.ToLower(files[j].Title)
 		})
+	case "modified":
+		sort.Slice(files, func(i, j int) bool {
+			// If both have zero time, fall back to ID
+			if files[i].ModTime.IsZero() && files[j].ModTime.IsZero() {
+				return files[i].ID < files[j].ID
+			}
+			// Zero times go to the end
+			if files[i].ModTime.IsZero() {
+				return false
+			}
+			if files[j].ModTime.IsZero() {
+				return true
+			}
+			return files[i].ModTime.After(files[j].ModTime)
+		})
+	case "created":
+		fallthrough
 	case "date":
 		fallthrough
 	default:
@@ -257,6 +280,33 @@ func SortTaskFiles(files []File, sortBy string, reverse bool, taskMeta map[strin
 			}
 			return files[i].ID < files[j].ID
 		})
+	case "project":
+		sort.Slice(files, func(i, j int) bool {
+			// Get project names for both files
+			pi, pj := getProjectName(files[i], taskMeta, projectMeta), getProjectName(files[j], taskMeta, projectMeta)
+			
+			// Tasks without projects go to the end
+			if pi == "" && pj == "" {
+				return files[i].ID < files[j].ID
+			}
+			if pi == "" {
+				return false
+			}
+			if pj == "" {
+				return true
+			}
+			
+			// Compare project names
+			if pi != pj {
+				return strings.ToLower(pi) < strings.ToLower(pj)
+			}
+			// Within same project, sort by due date
+			di, dj := getDueDate(files[i], taskMeta, projectMeta), getDueDate(files[j], taskMeta, projectMeta)
+			if di != dj && di != "" && dj != "" {
+				return di < dj
+			}
+			return files[i].ID < files[j].ID
+		})
 	case "estimate":
 		sort.Slice(files, func(i, j int) bool {
 			// Get estimates for both files
@@ -268,6 +318,23 @@ func SortTaskFiles(files []File, sortBy string, reverse bool, taskMeta map[strin
 			}
 			return files[i].ID < files[j].ID
 		})
+	case "modified":
+		sort.Slice(files, func(i, j int) bool {
+			// If both have zero time, fall back to ID
+			if files[i].ModTime.IsZero() && files[j].ModTime.IsZero() {
+				return files[i].ID < files[j].ID
+			}
+			// Zero times go to the end
+			if files[i].ModTime.IsZero() {
+				return false
+			}
+			if files[j].ModTime.IsZero() {
+				return true
+			}
+			return files[i].ModTime.After(files[j].ModTime)
+		})
+	case "created":
+		fallthrough
 	case "date":
 		fallthrough
 	default:
@@ -320,6 +387,25 @@ func priorityToNumber(priority string) int {
 	default:
 		return 4 // No priority goes last
 	}
+}
+
+func getProjectName(file File, taskMeta map[string]*Task, projectMeta map[string]*Project) string {
+	// If it's a project, return its own title
+	if project, ok := projectMeta[file.Path]; ok {
+		return project.ProjectMetadata.Title
+	}
+	
+	// If it's a task, get the project it belongs to
+	if task, ok := taskMeta[file.Path]; ok && task.TaskMetadata.ProjectID != "" {
+		// Find the project by ID
+		for _, proj := range projectMeta {
+			if proj.File.ID == task.TaskMetadata.ProjectID {
+				return proj.ProjectMetadata.Title
+			}
+		}
+	}
+	
+	return ""
 }
 
 func reverseFileSlice(files []File) {

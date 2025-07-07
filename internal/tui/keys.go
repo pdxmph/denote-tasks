@@ -498,11 +498,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 		// Use configured defaults for notes
 		m.sortBy = m.config.Notes.SortBy
-		if m.sortBy == "modified" || m.sortBy == "created" {
-			m.sortBy = "date"
-		}
 		if m.sortBy == "" {
-			m.sortBy = "date"
+			m.sortBy = "created"
 		}
 		m.reverseSort = m.config.Notes.SortOrder == "reverse"
 		// Clear task-specific filters when leaving task mode
@@ -558,31 +555,47 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeNormal
 		
 	case "d":
-		// Sort by due date
-		m.sortBy = "due"
-		m.mode = ModeNormal
-		m.sortFiles()
-		m.loadVisibleMetadata()
-		m.statusMsg = "Sorted by due date"
+		if m.viewMode == ViewModeTasks {
+			// Sort by due date (tasks only)
+			m.sortBy = "due"
+			m.mode = ModeNormal
+			m.sortFiles()
+			m.loadVisibleMetadata()
+			m.statusMsg = "Sorted by due date"
+		}
 		
 	case "p":
-		// Sort by priority
-		m.sortBy = "priority"
-		m.mode = ModeNormal
-		m.sortFiles()
-		m.loadVisibleMetadata()
-		m.statusMsg = "Sorted by priority"
+		if m.viewMode == ViewModeTasks {
+			// Sort by priority (tasks only)
+			m.sortBy = "priority"
+			m.mode = ModeNormal
+			m.sortFiles()
+			m.loadVisibleMetadata()
+			m.statusMsg = "Sorted by priority"
+		}
+		
+	case "j":
+		if m.viewMode == ViewModeTasks {
+			// Sort by project (tasks only)
+			m.sortBy = "project"
+			m.mode = ModeNormal
+			m.sortFiles()
+			m.loadVisibleMetadata()
+			m.statusMsg = "Sorted by project"
+		}
 		
 	case "e":
-		// Sort by estimate
-		m.sortBy = "estimate"
-		m.mode = ModeNormal
-		m.sortFiles()
-		m.loadVisibleMetadata()
-		m.statusMsg = "Sorted by estimate"
+		if m.viewMode == ViewModeTasks {
+			// Sort by estimate (tasks only)
+			m.sortBy = "estimate"
+			m.mode = ModeNormal
+			m.sortFiles()
+			m.loadVisibleMetadata()
+			m.statusMsg = "Sorted by estimate"
+		}
 		
 	case "t":
-		// Sort by title
+		// Sort by title (both modes)
 		m.sortBy = "title"
 		m.mode = ModeNormal
 		m.sortFiles()
@@ -590,12 +603,24 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "Sorted by title"
 		
 	case "c":
-		// Sort by created date (default date sort)
-		m.sortBy = "date"
+		// Sort by created date
+		if m.viewMode == ViewModeTasks {
+			m.sortBy = "created"
+		} else {
+			m.sortBy = "created"
+		}
 		m.mode = ModeNormal
 		m.sortFiles()
 		m.loadVisibleMetadata()
 		m.statusMsg = "Sorted by created date"
+		
+	case "m":
+		// Sort by modified date
+		m.sortBy = "modified"
+		m.mode = ModeNormal
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		m.statusMsg = "Sorted by modified date"
 		
 	case "r":
 		// Toggle reverse sort

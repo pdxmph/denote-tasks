@@ -7,11 +7,12 @@ import (
 
 // File represents the basic Denote file structure
 type File struct {
-	ID    string   // Denote timestamp ID (e.g., "20250704T151739")
-	Title string   // Human-readable title from slug
-	Slug  string   // Kebab-case title from filename
-	Tags  []string // Tags from filename
-	Path  string   // Full file path
+	ID      string    // Denote timestamp ID (e.g., "20250704T151739")
+	Title   string    // Human-readable title from slug
+	Slug    string    // Kebab-case title from filename
+	Tags    []string  // Tags from filename
+	Path    string    // Full file path
+	ModTime time.Time // File modification time
 }
 
 // IsTask checks if the file is a task based on tags

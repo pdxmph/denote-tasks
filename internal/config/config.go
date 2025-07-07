@@ -26,13 +26,13 @@ type TUIConfig struct {
 
 // NotesConfig represents notes mode specific settings
 type NotesConfig struct {
-	SortBy    string `toml:"sort_by"`    // modified, created, title
+	SortBy    string `toml:"sort_by"`    // created, modified, title
 	SortOrder string `toml:"sort_order"` // normal, reverse
 }
 
 // TasksConfig represents tasks mode specific settings
 type TasksConfig struct {
-	SortBy    string `toml:"sort_by"`    // due, priority, estimate, title, created
+	SortBy    string `toml:"sort_by"`    // due, priority, project, estimate, title, created, modified
 	SortOrder string `toml:"sort_order"` // normal, reverse
 }
 
@@ -160,7 +160,7 @@ func (c *Config) Validate() error {
 
 	// Validate notes sort options
 	if c.Notes.SortBy != "" {
-		validNoteSorts := []string{"modified", "created", "title", "date"}
+		validNoteSorts := []string{"modified", "created", "title"}
 		valid := false
 		for _, sort := range validNoteSorts {
 			if c.Notes.SortBy == sort {
@@ -169,7 +169,7 @@ func (c *Config) Validate() error {
 			}
 		}
 		if !valid {
-			return fmt.Errorf("invalid notes sort_by: %s (valid: modified, created, title)", c.Notes.SortBy)
+			return fmt.Errorf("invalid notes sort_by: %s (valid: created, modified, title)", c.Notes.SortBy)
 		}
 	}
 	
@@ -179,7 +179,7 @@ func (c *Config) Validate() error {
 
 	// Validate tasks sort options
 	if c.Tasks.SortBy != "" {
-		validTaskSorts := []string{"due", "priority", "estimate", "title", "created", "date"}
+		validTaskSorts := []string{"due", "priority", "project", "estimate", "title", "created", "modified"}
 		valid := false
 		for _, sort := range validTaskSorts {
 			if c.Tasks.SortBy == sort {
@@ -188,7 +188,7 @@ func (c *Config) Validate() error {
 			}
 		}
 		if !valid {
-			return fmt.Errorf("invalid tasks sort_by: %s (valid: due, priority, estimate, title, created)", c.Tasks.SortBy)
+			return fmt.Errorf("invalid tasks sort_by: %s (valid: due, priority, project, estimate, title, created, modified)", c.Tasks.SortBy)
 		}
 	}
 	

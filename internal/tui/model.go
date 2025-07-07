@@ -119,10 +119,8 @@ func NewModel(cfg *config.Config) (*Model, error) {
 	// Use configured defaults for notes mode
 	reverseSort := cfg.Notes.SortOrder == "reverse"
 	sortBy := cfg.Notes.SortBy
-	
-	// Map "modified" and "created" to "date" for backward compatibility
-	if sortBy == "modified" || sortBy == "created" {
-		sortBy = "date"
+	if sortBy == "" {
+		sortBy = "created" // Default to created date
 	}
 	
 	m := &Model{
@@ -386,9 +384,11 @@ func (m *Model) applyFilters() {
 }
 
 func (m *Model) sortFiles() {
-	if m.viewMode == ViewModeTasks && (m.sortBy == "priority" || m.sortBy == "due" || m.sortBy == "estimate") {
+	if m.viewMode == ViewModeTasks {
+		// Use task-specific sorting for task mode
 		denote.SortTaskFiles(m.filtered, m.sortBy, m.reverseSort, m.taskMetadata, m.projectMetadata)
 	} else {
+		// Use note-specific sorting for notes mode
 		denote.SortFiles(m.filtered, m.sortBy, m.reverseSort)
 	}
 }
