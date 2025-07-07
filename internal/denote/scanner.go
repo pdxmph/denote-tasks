@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -15,6 +16,40 @@ type Scanner struct {
 // NewScanner creates a new scanner for the given directory
 func NewScanner(dir string) *Scanner {
 	return &Scanner{BaseDir: dir}
+}
+
+// FindAllNotes finds all Denote files in the directory
+func (s *Scanner) FindAllNotes() ([]File, error) {
+	pattern := filepath.Join(s.BaseDir, "*.md")
+	paths, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob files: %w", err)
+	}
+	
+	var files []File
+	parser := NewParser()
+	
+	for _, path := range paths {
+		// Parse filename
+		file, err := parser.ParseFilename(filepath.Base(path))
+		if err != nil {
+			// Skip non-Denote files
+			continue
+		}
+		
+		file.Path = path
+		
+		// Try to get title from frontmatter
+		if metadata, err := parser.ParseFrontmatter(path); err == nil && metadata != nil {
+			if title, ok := metadata["title"].(string); ok && title != "" {
+				file.Title = title
+			}
+		}
+		
+		files = append(files, *file)
+	}
+	
+	return files, nil
 }
 
 // FindTasks finds all task files in the directory
@@ -100,7 +135,7 @@ func SortTasks(tasks []*Task, sortBy string, reverse bool) {
 	
 	case "id":
 		sort.Slice(tasks, func(i, j int) bool {
-			return tasks[i].TaskID < tasks[j].TaskID
+			return tasks[i].IndexID < tasks[j].IndexID
 		})
 	
 	case "created":
@@ -156,6 +191,140 @@ func statusValue(s string) int {
 func reverseTaskSlice(tasks []*Task) {
 	for i, j := 0, len(tasks)-1; i < j; i, j = i+1, j-1 {
 		tasks[i], tasks[j] = tasks[j], tasks[i]
+	}
+}
+
+// SortFiles sorts File slices by various criteria
+func SortFiles(files []File, sortBy string, reverse bool) {
+	switch sortBy {
+	case "title":
+		sort.Slice(files, func(i, j int) bool {
+			return strings.ToLower(files[i].Title) < strings.ToLower(files[j].Title)
+		})
+	case "date":
+		fallthrough
+	default:
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].ID < files[j].ID
+		})
+	}
+	
+	if reverse {
+		reverseFileSlice(files)
+	}
+}
+
+// SortTaskFiles sorts files with task metadata by various criteria
+func SortTaskFiles(files []File, sortBy string, reverse bool, taskMeta map[string]*Task, projectMeta map[string]*Project) {
+	switch sortBy {
+	case "title":
+		sort.Slice(files, func(i, j int) bool {
+			return strings.ToLower(files[i].Title) < strings.ToLower(files[j].Title)
+		})
+	case "priority":
+		sort.Slice(files, func(i, j int) bool {
+			// Get priorities for both files
+			pi, pj := getPriority(files[i], taskMeta, projectMeta), getPriority(files[j], taskMeta, projectMeta)
+			
+			// Convert priority strings to numbers for comparison (p1=1, p2=2, p3=3, empty=4)
+			piNum, pjNum := priorityToNumber(pi), priorityToNumber(pj)
+			
+			// Sort by priority first, then by date
+			if piNum != pjNum {
+				return piNum < pjNum
+			}
+			return files[i].ID < files[j].ID
+		})
+	case "due":
+		sort.Slice(files, func(i, j int) bool {
+			// Get due dates for both files
+			di, dj := getDueDate(files[i], taskMeta, projectMeta), getDueDate(files[j], taskMeta, projectMeta)
+			
+			// Empty dates go to the end
+			if di == "" && dj == "" {
+				return files[i].ID < files[j].ID
+			}
+			if di == "" {
+				return false
+			}
+			if dj == "" {
+				return true
+			}
+			
+			// Compare dates
+			if di != dj {
+				return di < dj
+			}
+			return files[i].ID < files[j].ID
+		})
+	case "estimate":
+		sort.Slice(files, func(i, j int) bool {
+			// Get estimates for both files
+			ei, ej := getEstimate(files[i], taskMeta), getEstimate(files[j], taskMeta)
+			
+			// Sort by estimate first, then by date
+			if ei != ej {
+				return ei < ej
+			}
+			return files[i].ID < files[j].ID
+		})
+	case "date":
+		fallthrough
+	default:
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].ID < files[j].ID
+		})
+	}
+	
+	if reverse {
+		reverseFileSlice(files)
+	}
+}
+
+// Helper functions for sorting
+func getPriority(file File, taskMeta map[string]*Task, projectMeta map[string]*Project) string {
+	if task, ok := taskMeta[file.Path]; ok {
+		return task.Priority
+	}
+	if project, ok := projectMeta[file.Path]; ok {
+		return project.Priority
+	}
+	return ""
+}
+
+func getDueDate(file File, taskMeta map[string]*Task, projectMeta map[string]*Project) string {
+	if task, ok := taskMeta[file.Path]; ok {
+		return task.DueDate
+	}
+	if project, ok := projectMeta[file.Path]; ok {
+		return project.DueDate
+	}
+	return ""
+}
+
+func getEstimate(file File, taskMeta map[string]*Task) int {
+	if task, ok := taskMeta[file.Path]; ok {
+		return task.Estimate
+	}
+	return 0
+}
+
+func priorityToNumber(priority string) int {
+	switch priority {
+	case "p1":
+		return 1
+	case "p2":
+		return 2
+	case "p3":
+		return 3
+	default:
+		return 4 // No priority goes last
+	}
+}
+
+func reverseFileSlice(files []File) {
+	for i, j := 0, len(files)-1; i < j; i, j = i+1, j-1 {
+		files[i], files[j] = files[j], files[i]
 	}
 }
 

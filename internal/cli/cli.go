@@ -11,6 +11,49 @@ import (
 	"github.com/pdxmph/denote-tasks/internal/task"
 )
 
+// fuzzyMatch performs fuzzy matching - query letters must appear in order but can be non-consecutive
+func fuzzyMatch(text, pattern string) bool {
+	if pattern == "" {
+		return true
+	}
+	
+	patternIdx := 0
+	for _, ch := range text {
+		if patternIdx < len(pattern) && ch == rune(pattern[patternIdx]) {
+			patternIdx++
+		}
+	}
+	
+	return patternIdx == len(pattern)
+}
+
+// taskMatchesSearch performs fuzzy search on task metadata
+func taskMatchesSearch(t *denote.Task, query string) bool {
+	query = strings.ToLower(query)
+	
+	// Search in status
+	if fuzzyMatch(strings.ToLower(t.Status), query) {
+		return true
+	}
+	
+	// Search in priority
+	if fuzzyMatch(strings.ToLower(t.Priority), query) {
+		return true
+	}
+	
+	// Search in area
+	if fuzzyMatch(strings.ToLower(t.Area), query) {
+		return true
+	}
+	
+	// Search in assignee
+	if fuzzyMatch(strings.ToLower(t.Assignee), query) {
+		return true
+	}
+	
+	return false
+}
+
 // Run executes the CLI with the given arguments
 func Run(cfg *config.Config, args []string) error {
 	if len(args) == 0 {
@@ -43,12 +86,12 @@ func addCommand(cfg *config.Config, args []string) error {
 	title := strings.Join(args, " ")
 	
 	// Create task with default tags
-	createdTask, err := task.CreateTask(cfg.NotesDirectory, title, "", []string{})
+	createdTask, err := task.CreateTask(cfg.NotesDirectory, title, "", []string{}, "")
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
 
-	fmt.Printf("Created task %d: %s\n", createdTask.TaskID, createdTask.TaskMetadata.Title)
+	fmt.Printf("Created task %d: %s\n", createdTask.IndexID, createdTask.TaskMetadata.Title)
 	return nil
 }
 
@@ -61,7 +104,7 @@ func listCommand(cfg *config.Config, args []string) error {
 	}
 
 	// Parse arguments for filters
-	var area, status string
+	var area, status, search string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--area":
@@ -72,6 +115,11 @@ func listCommand(cfg *config.Config, args []string) error {
 		case "--status":
 			if i+1 < len(args) {
 				status = args[i+1]
+				i++
+			}
+		case "--search", "-s":
+			if i+1 < len(args) {
+				search = args[i+1]
 				i++
 			}
 		}
@@ -87,9 +135,20 @@ func listCommand(cfg *config.Config, args []string) error {
 		// Default to open tasks
 		tasks = denote.FilterTasks(tasks, "open", "")
 	}
+	
+	// Apply search filter
+	if search != "" {
+		filtered := make([]*denote.Task, 0)
+		for _, task := range tasks {
+			if task.File.MatchesSearch(search) || taskMatchesSearch(task, search) {
+				filtered = append(filtered, task)
+			}
+		}
+		tasks = filtered
+	}
 
-	// Sort by ID
-	denote.SortTasks(tasks, "id", false)
+	// Sort by due date (closest first)
+	denote.SortTasks(tasks, "due", false)
 
 	// Display tasks
 	if len(tasks) == 0 {
@@ -115,7 +174,7 @@ func listCommand(cfg *config.Config, args []string) error {
 		}
 
 		fmt.Printf("%-4d %-8s %-8s %-10s %s\n", 
-			t.TaskID, t.Status, priority, due, t.TaskMetadata.Title)
+			t.IndexID, t.Status, priority, due, t.TaskMetadata.Title)
 	}
 
 	return nil
@@ -165,7 +224,7 @@ func showCommand(cfg *config.Config, args []string) error {
 	}
 
 	// Display task details
-	fmt.Printf("Task %d: %s\n", t.TaskID, t.TaskMetadata.Title)
+	fmt.Printf("Task %d: %s\n", t.IndexID, t.TaskMetadata.Title)
 	fmt.Printf("Status: %s\n", t.Status)
 	if t.Priority != "" {
 		fmt.Printf("Priority: %s\n", t.Priority)

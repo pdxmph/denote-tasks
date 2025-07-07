@@ -12,17 +12,17 @@ import (
 )
 
 // CreateTask creates a new task file with YAML frontmatter
-func CreateTask(dir, title, content string, tags []string) (*denote.Task, error) {
+func CreateTask(dir, title, content string, tags []string, area string) (*denote.Task, error) {
 	// Get ID counter
 	counter, err := denote.GetIDCounter(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ID counter: %w", err)
 	}
 
-	// Get next task ID
-	taskID, err := counter.NextTaskID()
+	// Get next index ID
+	indexID, err := counter.NextIndexID()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get next task ID: %w", err)
+		return nil, fmt.Errorf("failed to get next index ID: %w", err)
 	}
 
 	// Generate Denote ID
@@ -47,10 +47,11 @@ func CreateTask(dir, title, content string, tags []string) (*denote.Task, error)
 
 	// Create task metadata
 	metadata := denote.TaskMetadata{
-		Title:  title,
-		TaskID: taskID,
-		Type:   denote.TypeTask,
-		Status: denote.TaskStatusOpen,
+		Title:   title,
+		IndexID: indexID,
+		Type:    denote.TypeTask,
+		Status:  denote.TaskStatusOpen,
+		Area:    area,
 	}
 
 	// Build content with frontmatter
@@ -86,10 +87,10 @@ func CreateProject(dir, title, content string, tags []string) (*denote.Project, 
 		return nil, fmt.Errorf("failed to get ID counter: %w", err)
 	}
 
-	// Get next project ID
-	projectID, err := counter.NextProjectID()
+	// Get next index ID
+	indexID, err := counter.NextIndexID()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get next project ID: %w", err)
+		return nil, fmt.Errorf("failed to get next index ID: %w", err)
 	}
 
 	// Generate Denote ID
@@ -114,10 +115,10 @@ func CreateProject(dir, title, content string, tags []string) (*denote.Project, 
 
 	// Create project metadata
 	metadata := denote.ProjectMetadata{
-		Title:     title,
-		ProjectID: projectID,
-		Type:      denote.TypeProject,
-		Status:    denote.ProjectStatusActive,
+		Title:   title,
+		IndexID: indexID,
+		Type:    denote.TypeProject,
+		Status:  denote.ProjectStatusActive,
 	}
 
 	// Build content with frontmatter
@@ -154,7 +155,7 @@ func FindTaskByID(dir string, id int) (*denote.Task, error) {
 	}
 
 	for _, task := range tasks {
-		if task.TaskID == id {
+		if task.IndexID == id {
 			return task, nil
 		}
 	}
@@ -171,7 +172,7 @@ func FindProjectByID(dir string, id int) (*denote.Project, error) {
 	}
 
 	for _, project := range projects {
-		if project.ProjectID == id {
+		if project.IndexID == id {
 			return project, nil
 		}
 	}

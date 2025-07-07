@@ -15,8 +15,43 @@ var (
 	denotePattern = regexp.MustCompile(`^(\d{8}T\d{6})-{1,2}([^_]+)(?:__(.+))?\.md$`)
 )
 
+// Parser handles parsing of Denote files
+type Parser struct{}
+
+// NewParser creates a new parser
+func NewParser() *Parser {
+	return &Parser{}
+}
+
+// ParseFrontmatter extracts frontmatter metadata from a file
+func (p *Parser) ParseFrontmatter(path string) (map[string]interface{}, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Use the new strict parser
+	file, err := ParseFrontmatterFile(content)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert to generic map for backward compatibility
+	yamlData, err := yaml.Marshal(file.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	
+	var result map[string]interface{}
+	if err := yaml.Unmarshal(yamlData, &result); err != nil {
+		return nil, err
+	}
+	
+	return result, nil
+}
+
 // ParseFilename extracts Denote components from a filename
-func ParseFilename(filename string) (*File, error) {
+func (p *Parser) ParseFilename(filename string) (*File, error) {
 	base := filepath.Base(filename)
 	matches := denotePattern.FindStringSubmatch(base)
 	if len(matches) < 3 {
@@ -25,6 +60,7 @@ func ParseFilename(filename string) (*File, error) {
 
 	file := &File{
 		ID:    matches[1],
+		Slug:  matches[2],
 		Title: titleFromSlug(matches[2]), // Convert slug to readable title as fallback
 		Tags:  []string{},
 		Path:  filename,
@@ -41,7 +77,8 @@ func ParseFilename(filename string) (*File, error) {
 // ParseTaskFile reads and parses a task file
 func ParseTaskFile(path string) (*Task, error) {
 	// Parse filename first
-	file, err := ParseFilename(path)
+	p := NewParser()
+	file, err := p.ParseFilename(path)
 	if err != nil {
 		return nil, err
 	}
@@ -69,17 +106,14 @@ func ParseTaskFile(path string) (*Task, error) {
 		Content: string(content),
 	}
 
-	// Parse frontmatter
-	if meta, _, err := parseFrontmatter(content); err == nil {
-		if taskMeta, ok := meta.(*TaskMetadata); ok {
-			task.TaskMetadata = *taskMeta
+	// Parse frontmatter using strict parser
+	if file, err := ParseFrontmatterFile(content); err == nil {
+		if taskMeta, ok := file.Metadata.(TaskMetadata); ok {
+			task.TaskMetadata = taskMeta
 		}
 	}
 
 	// Set defaults per spec
-	if task.Type == "" {
-		task.Type = TypeTask
-	}
 	if task.Status == "" {
 		task.Status = TaskStatusOpen
 	}
@@ -95,7 +129,8 @@ func ParseTaskFile(path string) (*Task, error) {
 // ParseProjectFile reads and parses a project file
 func ParseProjectFile(path string) (*Project, error) {
 	// Parse filename first
-	file, err := ParseFilename(path)
+	p := NewParser()
+	file, err := p.ParseFilename(path)
 	if err != nil {
 		return nil, err
 	}
@@ -123,17 +158,14 @@ func ParseProjectFile(path string) (*Project, error) {
 		Content: string(content),
 	}
 
-	// Parse frontmatter
-	if meta, _, err := parseFrontmatter(content); err == nil {
-		if projMeta, ok := meta.(*ProjectMetadata); ok {
-			project.ProjectMetadata = *projMeta
+	// Parse frontmatter using strict parser
+	if file, err := ParseFrontmatterFile(content); err == nil {
+		if projMeta, ok := file.Metadata.(ProjectMetadata); ok {
+			project.ProjectMetadata = projMeta
 		}
 	}
 
 	// Set defaults per spec
-	if project.Type == "" {
-		project.Type = TypeProject
-	}
 	if project.Status == "" {
 		project.Status = ProjectStatusActive
 	}
@@ -201,14 +233,14 @@ func parseFrontmatter(content []byte) (interface{}, string, error) {
 		}
 	}
 
-	// Fall back to checking for task_id or project_id
+	// Fall back to checking for index_id
 	var taskMeta TaskMetadata
-	if err := yaml.Unmarshal([]byte(frontmatterStr), &taskMeta); err == nil && taskMeta.TaskID > 0 {
+	if err := yaml.Unmarshal([]byte(frontmatterStr), &taskMeta); err == nil && taskMeta.IndexID > 0 {
 		return &taskMeta, remaining, nil
 	}
 
 	var projMeta ProjectMetadata
-	if err := yaml.Unmarshal([]byte(frontmatterStr), &projMeta); err == nil && projMeta.ProjectID > 0 {
+	if err := yaml.Unmarshal([]byte(frontmatterStr), &projMeta); err == nil && projMeta.IndexID > 0 {
 		return &projMeta, remaining, nil
 	}
 

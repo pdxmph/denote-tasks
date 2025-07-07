@@ -6,3 +6,11 @@ denote-tasks
 .DS_Store
 coverage.txt
 /dist/
+
+# Test data with potentially sensitive information
+test-notes/
+test-config.toml
+
+# Screenshots that might contain sensitive info
+screenshot*.jpg
+screenshot*.png

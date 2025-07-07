@@ -1,13 +1,14 @@
 # Denote Task Format Specification
 
-Version: 2.0.1  
+Version: 3.0.0  
 Date: 2025-01-14
 
 ## Version History
 
-- 2.0.1 (2025-01-14): Unified sequential ID field
-  - Changed `task_id` and `project_id` to universal `index_id` field
-  - Counter file now uses `next_index_id` instead of separate counters
+- 3.0.0 (2025-01-14): Breaking changes - Unified sequential ID field
+  - Changed `task_id`/`project_id` to unified `index_id` field
+  - Clarified that `project_id` is exclusively for task->project associations
+  - Added clear field annotations to prevent confusion
 - 2.0.0 (2025-01-13): Breaking changes - Project associations now use Denote identifiers
   - Changed `project:` field to `project_id:` using Denote timestamp
   - Added required `title:` field to frontmatter spec
@@ -16,17 +17,13 @@ Date: 2025-01-14
   - Added semantic versioning
 - 1.0.0 (2025-07-04): Initial specification based on notes-cli implementation
 
-## Breaking Changes in 2.0.0
+## Breaking Changes in 3.0.0
 
-Tasks now reference projects using Denote identifiers instead of string names:
-- Old: `project: planning-for-lyon`
-- New: `project_id: 20250627T191225`
+Sequential IDs are now unified under a single field name:
+- Old: `task_id: 25` (in tasks), `project_id: 8` (in projects)
+- New: `index_id: 25` (in tasks), `index_id: 8` (in projects)
 
-## Breaking Changes in 2.0.1
-
-Unified sequential ID field for both tasks and projects:
-- Old: `task_id: 25` (for tasks), `project_id: 15` (for projects)
-- New: `index_id: 25` (universal for both)
+This eliminates confusion with `project_id` which is exclusively used for task->project associations.
 
 ## Overview
 
@@ -70,7 +67,7 @@ All task and project files begin with YAML frontmatter delimited by `---`:
 ```yaml
 ---
 title: Get a new front ring for the bike  # Human-readable title
-index_id: 25             # Unique sequential ID for CLI convenience
+index_id: 25             # Sequential ID for CLI convenience
 type: task               # Optional - determined by __task in filename
 status: open             # Task status (see Status Values)
 priority: p2             # Priority level (p1, p2, p3)
@@ -89,7 +86,7 @@ tags: [bike, maintenance]  # Additional tags beyond filename tags
 ```yaml
 ---
 title: Planning for Lyon  # Human-readable title
-index_id: 15             # Unique sequential ID for CLI convenience
+index_id: 26             # Sequential ID for CLI convenience (next in sequence)
 type: project            # Optional - determined by __project in filename
 status: active           # Project status (see Status Values)
 priority: p1             # Priority level (p1, p2, p3)
@@ -122,8 +119,10 @@ tags: [travel, conference]  # Additional tags beyond filename tags
 #### index_id
 - Type: Integer
 - Required: Yes
-- Description: Universal sequential ID for CLI convenience (e.g., `task 25` or `project 15`)
-- Note: The Denote ID (timestamp) is the canonical identifier
+- Description: Sequential ID for CLI convenience (e.g., `25` or `157`)
+- Note: This is NOT the Denote ID - it's a simple counter for user convenience
+- Note: All objects (tasks and projects) share the same index sequence
+- Note: The Denote ID (timestamp) in the filename is the canonical identifier
 
 #### status
 - Type: String (enum)
@@ -167,8 +166,9 @@ tags: [travel, conference]  # Additional tags beyond filename tags
 - Type: String (Denote ID)
 - Required: No
 - Format: `YYYYMMDDTHHMMSS`
-- Description: Denote ID of associated project file
+- Description: Denote ID of associated project file (NOT a sequential number)
 - Example: `20250627T191225`
+- Note: This links a task to its project using the project's Denote ID from its filename
 - Note: Use YAML comments for human context if needed
 
 #### assignee
@@ -183,7 +183,7 @@ After the YAML frontmatter, the file contains Markdown content:
 ```markdown
 ---
 title: Fix slow database queries
-task_id: 35
+index_id: 35
 type: task
 status: open
 project_id: 20250627T191225  # Website Optimization
@@ -220,12 +220,12 @@ notes/
 Tracks next available sequential ID:
 ```json
 {
-  "next_index_id": 73,
-  "spec_version": "2.0.1"
+  "next_index": 73,
+  "spec_version": "3.0.0"
 }
 ```
 
-Note: Previously named `.notes-cli-id-counter.json` in v1.0.0
+Note: Unified to a single counter in v3.0.0 - all objects (tasks and projects) share the same index sequence
 
 ## ID Reference Guidelines
 
@@ -235,18 +235,22 @@ The Denote ID (timestamp) is the canonical, immutable identifier for all files.
 ### Reference Methods
 Tasks/projects can be referenced by:
 1. **Denote ID** (canonical): `20250704T151739`
-2. **Sequential ID** (CLI convenience): `task 35` or `project 15`
+2. **Sequential Index** (CLI convenience): `35` or `15` (type determined from file)
 3. **Partial Denote ID**: `0704T1517` (must be unambiguous)
 4. **Title** (human search): "Fix kitchen sink"
 
 ### Association Example
 ```yaml
 # Task file: 20250705T093000--implement-search__task.md
-project_id: 20250627T191225  # Lyon Planning project
+index_id: 35             # This object is ID 35 in the CLI
+project_id: 20250627T191225  # This task belongs to the Lyon Planning project
 
 # Project file: 20250627T191225--lyon-planning__project.md
+index_id: 36             # This object is ID 36 in the CLI
 title: Lyon Planning
 ```
+
+Note: Tasks and projects share the same index sequence, so a task might be ID 35 and the next created project would be ID 36.
 
 ## Tool Implementation Guidelines
 
@@ -262,31 +266,22 @@ title: Lyon Planning
 3. Show project context when viewing tasks
 4. Cache project metadata for performance
 
-### Migration from v1.0.0
-Tasks using string-based project associations need migration:
-```yaml
-# Old (v1.0.0)
-project: planning-for-lyon
-
-# New (v2.0.0)
-project_id: 20250627T191225  # Planning for Lyon
-```
-
-### Migration from v2.0.0 to v2.0.1
-Unified sequential ID field:
+### Migration from v2.0.0
+Tasks and projects need to rename their sequential ID fields:
 ```yaml
 # Old (v2.0.0)
-task_id: 25      # For tasks
-project_id: 15   # For projects
+task_id: 35        # In task files
+project_id: 8      # In project files
 
-# New (v2.0.1)
-index_id: 25     # Universal for both tasks and projects
+# New (v3.0.0)
+index_id: 35       # In task files
+index_id: 8        # In project files
 ```
 
 ## Sync Considerations
 
 1. **Counter File**: Store as `.denote-task-counter.json` in task directory
-2. **Conflict Resolution**: If counter missing, scan for highest index_id
+2. **Conflict Resolution**: If counter missing, scan for highest sequential ID
 3. **Denote IDs**: Include microseconds to minimize collision risk
 4. **Project References**: Denote IDs are stable across renames/moves
 
@@ -374,9 +369,9 @@ Complete redesign of company website with new branding and improved UX.
 
 This specification follows [Semantic Versioning 2.0.0](https://semver.org/):
 
-- **MAJOR** version for incompatible changes (e.g., 2.0.0)
-- **MINOR** version for backwards-compatible features (e.g., 2.1.0)
-- **PATCH** version for backwards-compatible fixes (e.g., 2.0.1)
+- **MAJOR** version for incompatible changes (e.g., 3.0.0)
+- **MINOR** version for backwards-compatible features (e.g., 3.1.0)
+- **PATCH** version for backwards-compatible fixes (e.g., 3.0.1)
 
 Tools implementing this spec should:
 1. Declare which spec version they support

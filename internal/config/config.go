@@ -13,6 +13,7 @@ type Config struct {
 	NotesDirectory string    `toml:"notes_directory"`
 	Editor         string    `toml:"editor"`
 	DefaultArea    string    `toml:"default_area"`
+	SoonHorizon    int       `toml:"soon_horizon"`  // Days for "soon" filter, default 3
 	TUI            TUIConfig `toml:"tui"`
 }
 
@@ -28,6 +29,7 @@ func DefaultConfig() *Config {
 		NotesDirectory: filepath.Join(homeDir, "notes"),
 		Editor:         "vim",
 		DefaultArea:    "",
+		SoonHorizon:    3,  // Default to 3 days
 		TUI: TUIConfig{
 			Theme: "default",
 		},
@@ -66,6 +68,11 @@ func Load(path string) (*Config, error) {
 
 	// Expand home directory in paths
 	cfg.NotesDirectory = expandHome(cfg.NotesDirectory)
+	
+	// Ensure SoonHorizon has a sensible default if not set
+	if cfg.SoonHorizon <= 0 {
+		cfg.SoonHorizon = 3
+	}
 
 	// Validate config
 	if err := cfg.Validate(); err != nil {

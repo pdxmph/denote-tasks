@@ -1,6 +1,7 @@
 package denote
 
 import (
+	"strings"
 	"time"
 )
 
@@ -8,37 +9,119 @@ import (
 type File struct {
 	ID    string   // Denote timestamp ID (e.g., "20250704T151739")
 	Title string   // Human-readable title from slug
+	Slug  string   // Kebab-case title from filename
 	Tags  []string // Tags from filename
 	Path  string   // Full file path
 }
 
+// IsTask checks if the file is a task based on tags
+func (f *File) IsTask() bool {
+	return f.HasTag("task")
+}
+
+// IsProject checks if the file is a project based on tags
+func (f *File) IsProject() bool {
+	return f.HasTag("project")
+}
+
+// HasTag checks if the file has a specific tag
+func (f *File) HasTag(tag string) bool {
+	for _, t := range f.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchesSearch checks if the file matches a search query using fuzzy matching
+func (f *File) MatchesSearch(query string) bool {
+	query = strings.ToLower(query)
+	
+	// Fuzzy search in title
+	if fuzzyMatch(strings.ToLower(f.Title), query) {
+		return true
+	}
+	
+	// Fuzzy search in slug
+	if fuzzyMatch(strings.ToLower(f.Slug), query) {
+		return true
+	}
+	
+	// Fuzzy search in tags
+	for _, tag := range f.Tags {
+		if fuzzyMatch(strings.ToLower(tag), query) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// MatchesTag checks if the file has a tag matching the query (fuzzy match)
+func (f *File) MatchesTag(query string) bool {
+	query = strings.ToLower(query)
+	
+	for _, tag := range f.Tags {
+		if fuzzyMatch(strings.ToLower(tag), query) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// fuzzyMatch performs true fuzzy matching - query letters must appear in order but can be non-consecutive
+func fuzzyMatch(text, pattern string) bool {
+	if pattern == "" {
+		return true
+	}
+	
+	patternIdx := 0
+	for _, ch := range text {
+		if patternIdx < len(pattern) && ch == rune(pattern[patternIdx]) {
+			patternIdx++
+		}
+	}
+	
+	return patternIdx == len(pattern)
+}
+
+// NoteMetadata represents general note frontmatter
+type NoteMetadata struct {
+	Title   string   `yaml:"title"`               // Required: Human-readable title
+	Type    string   `yaml:"type,omitempty"`      // Optional: "note" (determined by filename)
+	Created string   `yaml:"created,omitempty"`   // YYYY-MM-DD format
+	Tags    []string `yaml:"tags,omitempty"`      // Optional tags
+}
+
 // TaskMetadata represents task-specific frontmatter per spec v2.0.0
 type TaskMetadata struct {
-	Title     string   `yaml:"title"`      // Required: Human-readable title
-	TaskID    int      `yaml:"task_id"`    // Required: Sequential ID for CLI
-	Type      string   `yaml:"type"`       // Required: "task"
-	Status    string   `yaml:"status"`     // Default: "open"
-	Priority  string   `yaml:"priority"`   // p1, p2, p3
-	DueDate   string   `yaml:"due_date"`   // YYYY-MM-DD format
-	StartDate string   `yaml:"start_date"` // YYYY-MM-DD format
-	Estimate  int      `yaml:"estimate"`   // Fibonacci: 1,2,3,5,8,13
-	ProjectID string   `yaml:"project_id"` // Denote ID of project (v2.0.0)
-	Area      string   `yaml:"area"`       // Life context
-	Assignee  string   `yaml:"assignee"`   // Person responsible
-	Tags      []string `yaml:"tags"`       // Additional tags beyond filename
+	Title     string   `yaml:"title"`               // Required: Human-readable title
+	IndexID   int      `yaml:"index_id"`            // Required: Sequential ID for CLI
+	Type      string   `yaml:"type,omitempty"`      // Optional: "task" (determined by __task tag)
+	Status    string   `yaml:"status,omitempty"`    // Default: "open"
+	Priority  string   `yaml:"priority,omitempty"`  // p1, p2, p3
+	DueDate   string   `yaml:"due_date,omitempty"`  // YYYY-MM-DD format
+	StartDate string   `yaml:"start_date,omitempty"` // YYYY-MM-DD format
+	Estimate  int      `yaml:"estimate,omitempty"`  // Fibonacci: 1,2,3,5,8,13
+	ProjectID string   `yaml:"project_id,omitempty"` // Denote ID of project (v2.0.0)
+	Area      string   `yaml:"area,omitempty"`      // Life context
+	Assignee  string   `yaml:"assignee,omitempty"`  // Person responsible
+	Tags      []string `yaml:"tags,omitempty"`      // Additional tags beyond filename
 }
 
 // ProjectMetadata represents project-specific frontmatter per spec v2.0.0
 type ProjectMetadata struct {
-	Title     string   `yaml:"title"`      // Required: Human-readable title
-	ProjectID int      `yaml:"project_id"` // Required: Sequential ID for CLI
-	Type      string   `yaml:"type"`       // Required: "project"
-	Status    string   `yaml:"status"`     // Default: "active"
-	Priority  string   `yaml:"priority"`   // p1, p2, p3
-	DueDate   string   `yaml:"due_date"`   // YYYY-MM-DD format
-	StartDate string   `yaml:"start_date"` // YYYY-MM-DD format
-	Area      string   `yaml:"area"`       // Life context
-	Tags      []string `yaml:"tags"`       // Additional tags beyond filename
+	Title     string   `yaml:"title"`               // Required: Human-readable title
+	IndexID   int      `yaml:"index_id"`            // Required: Sequential ID for CLI
+	Type      string   `yaml:"type,omitempty"`      // Optional: "project" (determined by __project tag)
+	Status    string   `yaml:"status,omitempty"`    // Default: "active"
+	Priority  string   `yaml:"priority,omitempty"`  // p1, p2, p3
+	DueDate   string   `yaml:"due_date,omitempty"`  // YYYY-MM-DD format
+	StartDate string   `yaml:"start_date,omitempty"` // YYYY-MM-DD format
+	Area      string   `yaml:"area,omitempty"`      // Life context
+	Tags      []string `yaml:"tags,omitempty"`      // Additional tags beyond filename
 }
 
 // Task combines File info with TaskMetadata
@@ -126,6 +209,29 @@ func IsOverdue(dueDateStr string) bool {
 	dueStart := time.Date(dueDate.Year(), dueDate.Month(), dueDate.Day(), 0, 0, 0, 0, loc)
 	
 	return dueStart.Before(nowStart)
+}
+
+// IsDueSoon checks if a task/project is due within the specified number of days
+func IsDueSoon(dueDateStr string, horizonDays int) bool {
+	if dueDateStr == "" {
+		return false
+	}
+	// Parse date in local timezone to avoid timezone issues
+	loc := time.Now().Location()
+	dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, loc)
+	if err != nil {
+		return false
+	}
+	// Get current time at start of day in local timezone
+	now := time.Now().In(loc)
+	nowStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	dueStart := time.Date(dueDate.Year(), dueDate.Month(), dueDate.Day(), 0, 0, 0, 0, loc)
+	
+	// Calculate days until due
+	daysUntil := int(dueStart.Sub(nowStart).Hours() / 24)
+	
+	// Due soon if due today or within horizon days (and not overdue)
+	return daysUntil >= 0 && daysUntil <= horizonDays
 }
 
 // DaysUntilDue returns the number of days until the due date
