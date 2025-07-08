@@ -7,8 +7,18 @@ import (
 	"github.com/pdxmph/denote-tasks/internal/config"
 )
 
-// Run starts the TUI application
-func Run(cfg *config.Config, areaFilter string, showProjects bool) error {
+// Run starts the TUI application with optional filters
+func Run(cfg *config.Config, filters ...string) error {
+	// Parse optional filters
+	var areaFilter string
+	var showProjects bool
+	
+	if len(filters) > 0 {
+		areaFilter = filters[0]
+	}
+	if len(filters) > 1 && filters[1] == "true" {
+		showProjects = true
+	}
 	model, err := NewModel(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create model: %w", err)

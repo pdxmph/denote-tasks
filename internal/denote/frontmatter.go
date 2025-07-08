@@ -3,7 +3,9 @@ package denote
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 	
 	"gopkg.in/yaml.v3"
 )
@@ -168,4 +170,77 @@ func WriteFrontmatterFile(metadata interface{}, content string) ([]byte, error) 
 func ValidateYAMLFrontmatter(content []byte) error {
 	_, err := ParseFrontmatterFile(content)
 	return err
+}
+
+// AddLogEntry adds a timestamped log entry to a task file
+func AddLogEntry(filepath string, message string) error {
+	// Read the file
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+	
+	// Find the end of frontmatter
+	lines := strings.Split(string(content), "\n")
+	frontmatterEnd := -1
+	inFrontmatter := false
+	
+	for i, line := range lines {
+		if i == 0 && line == "---" {
+			inFrontmatter = true
+			continue
+		}
+		if inFrontmatter && line == "---" {
+			frontmatterEnd = i
+			break
+		}
+	}
+	
+	if frontmatterEnd == -1 {
+		return fmt.Errorf("no frontmatter found in file")
+	}
+	
+	// Format the log entry with timestamp
+	now := time.Now()
+	// Use reference time to get day name: Mon Jan 2 15:04:05 MST 2006
+	timestamp := now.Format("[2006-01-02 Mon]")
+	logEntry := fmt.Sprintf("%s: %s", timestamp, message)
+	
+	// Build the new content
+	var newLines []string
+	
+	// Add frontmatter
+	newLines = append(newLines, lines[:frontmatterEnd+1]...)
+	
+	// Find where to insert the log entry
+	insertPos := frontmatterEnd + 1
+	
+	// Skip any existing blank lines after frontmatter
+	for insertPos < len(lines) && lines[insertPos] == "" {
+		insertPos++
+	}
+	
+	// Check if we need to add blank lines
+	if insertPos < len(lines) {
+		// Add blank line before log entry if there's content after frontmatter
+		newLines = append(newLines, "")
+	}
+	
+	// Add the log entry
+	newLines = append(newLines, logEntry)
+	
+	// Add the rest of the content
+	if insertPos < len(lines) {
+		// Add a blank line after log entry if there's more content
+		newLines = append(newLines, "")
+		newLines = append(newLines, lines[insertPos:]...)
+	}
+	
+	// Write back to file
+	newContent := strings.Join(newLines, "\n")
+	if err := os.WriteFile(filepath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+	
+	return nil
 }
