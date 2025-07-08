@@ -1013,8 +1013,15 @@ Working on Issue #1 - Basic TUI for browsing notes. Focus is on implementing jus
    - Added "None" option to unassign tasks from projects
    - Changed help text to show "pro(j)ect" instead of "(j)roject"
 
+4. ✅ Added "due today" divider in task list
+   - Shows horizontal line separating tasks due today from future tasks
+   - Only appears in task mode when sorted by due date (ascending)
+   - Label "→ due today" appears in project column for consistency
+   - Continuous line extends full width without gaps
+   - Helps visualize what needs attention today
+
 ### Current Status
-**✅ TESTED AND WORKING** - The project selection interface has been implemented and confirmed working by the user.
+**✅ TESTED AND WORKING** - All features have been implemented and confirmed working by the user.
 
 ### Testing Required
 1. **Task Creation Form**

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pdxmph/denote-tasks/internal/denote"
@@ -177,7 +178,44 @@ func (m Model) renderFileList() string {
 	
 	
 	var lines []string
+	todayStr := time.Now().Format("2006-01-02")
+	
+	// Check if we should show divider in the visible range
+	showDividerAt := -1
+	if m.viewMode == ViewModeTasks && m.sortBy == "due" && !m.reverseSort {
+		// Find where to show the divider in the full list
+		for i := 0; i < len(m.filtered); i++ {
+			file := m.filtered[i]
+			if task, ok := m.taskMetadata[file.Path]; ok {
+				// Show divider before first task that is:
+				// 1. Due after today, OR
+				// 2. Has no due date (and we've seen tasks with due dates)
+				if (task.TaskMetadata.DueDate != "" && task.TaskMetadata.DueDate > todayStr) ||
+				   (task.TaskMetadata.DueDate == "" && i > 0) {
+					showDividerAt = i
+					break
+				}
+			} else if project, ok := m.projectMetadata[file.Path]; ok {
+				// Same logic for projects
+				if (project.ProjectMetadata.DueDate != "" && project.ProjectMetadata.DueDate > todayStr) ||
+				   (project.ProjectMetadata.DueDate == "" && i > 0) {
+					showDividerAt = i
+					break
+				}
+			}
+		}
+	}
+	
 	for i := start; i < end; i++ {
+		// Show divider if this is the position
+		if i == showDividerAt {
+			// Create a continuous line that matches the total width
+			// The format string adds spaces, so we need to account for those
+			// Total chars before project: roughly 106-110
+			divider := strings.Repeat("─", 106) + "→ due today"
+			lines = append(lines, helpStyle.Render(divider))
+		}
+		
 		line := m.renderFileLine(i)
 		lines = append(lines, line)
 	}
