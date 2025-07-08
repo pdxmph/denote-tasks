@@ -15,18 +15,36 @@ A task management system built on the Denote file naming convention.
 go install github.com/pdxmph/denote-tasks/cmd/denote-tasks@latest
 ```
 
+Or for a specific version:
+```bash
+go install github.com/pdxmph/denote-tasks/cmd/denote-tasks@v0.2.0
+```
+
+**Note**: This is a binary application, not a library. Do not use `go get` to install it.
+
 ## Usage
 
 ```bash
-# Add a task
-denote-tasks add "Fix search bug"
+# Create a new task
+denote-tasks task new "Fix search bug"
+denote-tasks task new -p p1 --due tomorrow "Call client"
 
-# List tasks  
-denote-tasks list --area work
+# List tasks
+denote-tasks task list
+denote-tasks task list -p p1 --area work
+
+# Update tasks (uses index_id from list)
+denote-tasks task update -p p2 28
+denote-tasks task done 28,35
+
+# Add log entries
+denote-tasks task log 28 "Found root cause"
 
 # Interactive TUI
 denote-tasks --tui
 ```
+
+See [CLI Reference](docs/CLI_REFERENCE.md) for full command documentation.
 
 ## Configuration
 
