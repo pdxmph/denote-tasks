@@ -60,7 +60,7 @@ fi
 
 # Build the binary
 echo "Building for $OS/$ARCH..."
-go build -o "dist/denote-tasks" ./cmd/denote-tasks
+go build -o "dist/denote-tasks" .
 
 # Create archive
 ARCHIVE_NAME="denote-tasks_${VERSION}_${OS}_${ARCH}.tar.gz"

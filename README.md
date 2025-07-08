@@ -12,15 +12,13 @@ A task management system built on the Denote file naming convention.
 ## Installation
 
 ```bash
-go install github.com/pdxmph/denote-tasks/cmd/denote-tasks@latest
+go install github.com/pdxmph/denote-tasks@latest
 ```
 
 Or for a specific version:
 ```bash
-go install github.com/pdxmph/denote-tasks/cmd/denote-tasks@v0.2.0
+go install github.com/pdxmph/denote-tasks@v0.2.0
 ```
-
-**Note**: This is a binary application, not a library. Do not use `go get` to install it.
 
 ## Usage
 

@@ -4,7 +4,7 @@ VERSION := 0.1.0
 BINARY := denote-tasks
 
 build:
-	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) cmd/denote-tasks/main.go
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) .
 
 test:
 	go test ./...
