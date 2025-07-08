@@ -260,7 +260,7 @@ func taskListCommand(cfg *config.Config) *Command {
 		}
 
 		// Display tasks
-		for i, t := range tasks {
+		for _, t := range tasks {
 			// Status icon
 			status := "○"
 			switch t.TaskMetadata.Status {
@@ -274,8 +274,8 @@ func taskListCommand(cfg *config.Config) *Command {
 				status = "✗"
 			}
 
-			// Format line
-			line := fmt.Sprintf("%3d %s ", i+1, status)
+			// Format line with index_id
+			line := fmt.Sprintf("%3d %s ", t.TaskMetadata.IndexID, status)
 
 			// Priority
 			if t.TaskMetadata.Priority != "" {
@@ -387,8 +387,8 @@ func priorityValue(p string) int {
 	}
 }
 
-// parseTaskNumbers parses task number arguments (supports ranges and lists)
-func parseTaskNumbers(args []string) ([]int, error) {
+// parseTaskIDs parses task ID arguments (supports ranges and lists)
+func parseTaskIDs(args []string) ([]int, error) {
 	var numbers []int
 	seen := make(map[int]bool)
 
@@ -429,7 +429,7 @@ func parseTaskNumbers(args []string) ([]int, error) {
 				// Single number
 				num, err := strconv.Atoi(part)
 				if err != nil {
-					return nil, fmt.Errorf("invalid task number: %s", part)
+					return nil, fmt.Errorf("invalid task ID: %s", part)
 				}
 				if !seen[num] {
 					numbers = append(numbers, num)
@@ -456,7 +456,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "update",
-		Usage:       "denote-tasks task update <task-numbers> [options]",
+		Usage:       "denote-tasks task update [options] <task-ids>",
 		Description: "Update task metadata",
 		Flags:       flag.NewFlagSet("task-update", flag.ExitOnError),
 	}
@@ -471,11 +471,11 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 
 	cmd.Run = func(c *Command, args []string) error {
 		if len(args) == 0 {
-			return fmt.Errorf("task numbers required")
+			return fmt.Errorf("task IDs required")
 		}
 
-		// Parse task numbers
-		numbers, err := parseTaskNumbers(args)
+		// Parse task IDs
+		numbers, err := parseTaskIDs(args)
 		if err != nil {
 			return err
 		}
@@ -487,9 +487,8 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// Build index of tasks by number
-		tasksByNum := make(map[int]*denote.Task)
-		taskNum := 1
+		// Build index of tasks by index_id
+		tasksByID := make(map[int]*denote.Task)
 		for _, file := range files {
 			if !file.IsTask() {
 				continue
@@ -498,16 +497,15 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			if err != nil {
 				continue
 			}
-			tasksByNum[taskNum] = t
-			taskNum++
+			tasksByID[t.TaskMetadata.IndexID] = t
 		}
 
 		// Update each task
 		updated := 0
-		for _, num := range numbers {
-			t, ok := tasksByNum[num]
+		for _, id := range numbers {
+			t, ok := tasksByID[id]
 			if !ok {
-				fmt.Fprintf(os.Stderr, "Task %d not found\n", num)
+				fmt.Fprintf(os.Stderr, "Task with ID %d not found\n", id)
 				continue
 			}
 
@@ -520,7 +518,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			if due != "" {
 				parsedDue, err := denote.ParseNaturalDate(due)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Invalid due date for task %d: %v\n", num, err)
+					fmt.Fprintf(os.Stderr, "Invalid due date for task ID %d: %v\n", id, err)
 					continue
 				}
 				t.TaskMetadata.DueDate = parsedDue
@@ -545,12 +543,12 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 
 			if changed {
 				if err := task.UpdateTaskFile(t.File.Path, t.TaskMetadata); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to update task %d: %v\n", num, err)
+					fmt.Fprintf(os.Stderr, "Failed to update task ID %d: %v\n", id, err)
 					continue
 				}
 				updated++
 				if !globalFlags.Quiet {
-					fmt.Printf("Updated task %d: %s\n", num, t.TaskMetadata.Title)
+					fmt.Printf("Updated task ID %d: %s\n", id, t.TaskMetadata.Title)
 				}
 			}
 		}
@@ -568,17 +566,17 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 func taskDoneCommand(cfg *config.Config) *Command {
 	cmd := &Command{
 		Name:        "done",
-		Usage:       "denote-tasks task done <task-numbers>",
+		Usage:       "denote-tasks task done <task-ids>",
 		Description: "Mark tasks as done",
 	}
 
 	cmd.Run = func(c *Command, args []string) error {
 		if len(args) == 0 {
-			return fmt.Errorf("task numbers required")
+			return fmt.Errorf("task IDs required")
 		}
 
-		// Parse task numbers
-		numbers, err := parseTaskNumbers(args)
+		// Parse task IDs
+		numbers, err := parseTaskIDs(args)
 		if err != nil {
 			return err
 		}
@@ -590,9 +588,8 @@ func taskDoneCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// Build index of tasks by number
-		tasksByNum := make(map[int]*denote.Task)
-		taskNum := 1
+		// Build index of tasks by index_id
+		tasksByID := make(map[int]*denote.Task)
 		for _, file := range files {
 			if !file.IsTask() {
 				continue
@@ -601,27 +598,26 @@ func taskDoneCommand(cfg *config.Config) *Command {
 			if err != nil {
 				continue
 			}
-			tasksByNum[taskNum] = t
-			taskNum++
+			tasksByID[t.TaskMetadata.IndexID] = t
 		}
 
 		// Mark tasks as done
 		updated := 0
-		for _, num := range numbers {
-			t, ok := tasksByNum[num]
+		for _, id := range numbers {
+			t, ok := tasksByID[id]
 			if !ok {
-				fmt.Fprintf(os.Stderr, "Task %d not found\n", num)
+				fmt.Fprintf(os.Stderr, "Task with ID %d not found\n", id)
 				continue
 			}
 
 			t.TaskMetadata.Status = denote.TaskStatusDone
 			if err := task.UpdateTaskFile(t.File.Path, t.TaskMetadata); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to mark task %d as done: %v\n", num, err)
+				fmt.Fprintf(os.Stderr, "Failed to mark task ID %d as done: %v\n", id, err)
 				continue
 			}
 			updated++
 			if !globalFlags.Quiet {
-				fmt.Printf("✓ Task %d marked as done: %s\n", num, t.TaskMetadata.Title)
+				fmt.Printf("✓ Task ID %d marked as done: %s\n", id, t.TaskMetadata.Title)
 			}
 		}
 
@@ -638,19 +634,19 @@ func taskDoneCommand(cfg *config.Config) *Command {
 func taskLogCommand(cfg *config.Config) *Command {
 	cmd := &Command{
 		Name:        "log",
-		Usage:       "denote-tasks task log <task-number> <message>",
+		Usage:       "denote-tasks task log <task-id> <message>",
 		Description: "Add a timestamped log entry to a task",
 	}
 
 	cmd.Run = func(c *Command, args []string) error {
 		if len(args) < 2 {
-			return fmt.Errorf("task number and message required")
+			return fmt.Errorf("task ID and message required")
 		}
 
-		// Parse task number
+		// Parse task ID
 		taskNum, err := strconv.Atoi(args[0])
 		if err != nil {
-			return fmt.Errorf("invalid task number: %s", args[0])
+			return fmt.Errorf("invalid task ID: %s", args[0])
 		}
 
 		// Join remaining args as log message
@@ -663,33 +659,30 @@ func taskLogCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// Find the task
-		num := 1
+		// Find the task by index_id
 		for _, file := range files {
 			if !file.IsTask() {
 				continue
 			}
-			if num == taskNum {
-				// Parse the task
-				task, err := denote.ParseTaskFile(file.Path)
-				if err != nil {
-					return fmt.Errorf("failed to parse task: %v", err)
-				}
-
+			// Parse the task
+			task, err := denote.ParseTaskFile(file.Path)
+			if err != nil {
+				continue
+			}
+			if task.TaskMetadata.IndexID == taskNum {
 				// Add log entry
 				if err := denote.AddLogEntry(file.Path, message); err != nil {
 					return fmt.Errorf("failed to add log entry: %v", err)
 				}
 
 				if !globalFlags.Quiet {
-					fmt.Printf("Added log entry to task %d: %s\n", taskNum, task.TaskMetadata.Title)
+					fmt.Printf("Added log entry to task ID %d: %s\n", taskNum, task.TaskMetadata.Title)
 				}
 				return nil
 			}
-			num++
 		}
 
-		return fmt.Errorf("task %d not found", taskNum)
+		return fmt.Errorf("task with ID %d not found", taskNum)
 	}
 
 	return cmd
@@ -698,7 +691,7 @@ func taskLogCommand(cfg *config.Config) *Command {
 func taskEditCommand(cfg *config.Config) *Command {
 	return &Command{
 		Name:        "edit",
-		Usage:       "denote-tasks task edit <task-number>",
+		Usage:       "denote-tasks task edit <task-id>",
 		Description: "Edit task in external editor or TUI",
 		Run: func(c *Command, args []string) error {
 			return fmt.Errorf("not yet implemented")
@@ -709,7 +702,7 @@ func taskEditCommand(cfg *config.Config) *Command {
 func taskDeleteCommand(cfg *config.Config) *Command {
 	return &Command{
 		Name:        "delete",
-		Usage:       "denote-tasks task delete <task-numbers>",
+		Usage:       "denote-tasks task delete <task-ids>",
 		Description: "Delete tasks (with confirmation)",
 		Run: func(c *Command, args []string) error {
 			return fmt.Errorf("not yet implemented")
