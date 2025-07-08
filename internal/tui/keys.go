@@ -277,7 +277,8 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Title is required"
 			return m, nil
 		}
-		// Create the task directly without going to tags mode
+		// Create the task and exit to normal mode
+		m.mode = ModeNormal
 		return m, m.createTask()
 		
 	case "up", "shift+tab":
