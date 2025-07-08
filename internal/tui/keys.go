@@ -240,24 +240,118 @@ func (m Model) handlePreviewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// For notes, use simple title input
+	if m.viewMode != ViewModeTasks {
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.mode = ModeNormal
+			m.createTitle = ""
+			
+		case "enter":
+			if m.createTitle != "" {
+				m.mode = ModeCreateTags
+			}
+			
+		case "backspace":
+			if len(m.createTitle) > 0 {
+				m.createTitle = m.createTitle[:len(m.createTitle)-1]
+			}
+			
+		default:
+			if len(msg.String()) == 1 {
+				m.createTitle += msg.String()
+			}
+		}
+		return m, nil
+	}
+	
+	// Full task creation form
 	switch msg.String() {
 	case "esc", "ctrl+c":
 		m.mode = ModeNormal
-		m.createTitle = ""
+		m.resetCreateFields()
 		
 	case "enter":
-		if m.createTitle != "" {
-			m.mode = ModeCreateTags
+		// Validate and save
+		if m.createTitle == "" {
+			m.statusMsg = "Title is required"
+			return m, nil
+		}
+		// Create the task directly without going to tags mode
+		return m, m.createTask()
+		
+	case "up", "shift+tab":
+		// Move to previous field
+		m.createField--
+		if m.createField < 0 {
+			m.createField = 6 // Wrap to last field (tags)
+		}
+		// Skip area field if filtered
+		if m.createField == 3 && m.areaFilter != "" {
+			m.createField--
+		}
+		
+	case "down", "tab":
+		// Move to next field
+		m.createField++
+		if m.createField > 6 {
+			m.createField = 0 // Wrap to first field
+		}
+		// Skip area field if filtered
+		if m.createField == 3 && m.areaFilter != "" {
+			m.createField++
 		}
 		
 	case "backspace":
-		if len(m.createTitle) > 0 {
-			m.createTitle = m.createTitle[:len(m.createTitle)-1]
+		// Edit current field
+		switch m.createField {
+		case 0: // Title
+			if len(m.createTitle) > 0 {
+				m.createTitle = m.createTitle[:len(m.createTitle)-1]
+			}
+		case 1: // Priority
+			if len(m.createPriority) > 0 {
+				m.createPriority = m.createPriority[:len(m.createPriority)-1]
+			}
+		case 2: // Due Date
+			if len(m.createDue) > 0 {
+				m.createDue = m.createDue[:len(m.createDue)-1]
+			}
+		case 3: // Area (only if not filtered)
+			// Skip - area is inherited from filter
+		case 4: // Project
+			if len(m.createProject) > 0 {
+				m.createProject = m.createProject[:len(m.createProject)-1]
+			}
+		case 5: // Estimate
+			if len(m.createEstimate) > 0 {
+				m.createEstimate = m.createEstimate[:len(m.createEstimate)-1]
+			}
+		case 6: // Tags
+			if len(m.createTags) > 0 {
+				m.createTags = m.createTags[:len(m.createTags)-1]
+			}
 		}
 		
 	default:
+		// Type into current field
 		if len(msg.String()) == 1 {
-			m.createTitle += msg.String()
+			switch m.createField {
+			case 0: // Title
+				m.createTitle += msg.String()
+			case 1: // Priority
+				m.createPriority += msg.String()
+			case 2: // Due Date
+				m.createDue += msg.String()
+			case 3: // Area (only if not filtered)
+				// Skip - area is inherited from filter
+			case 4: // Project
+				m.createProject += msg.String()
+			case 5: // Estimate
+				m.createEstimate += msg.String()
+			case 6: // Tags
+				m.createTags += msg.String()
+			}
 		}
 	}
 	

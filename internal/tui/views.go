@@ -607,7 +607,7 @@ Navigation:
 
 Task Actions:
   Enter   Preview task
-  c       Create new task (inherits area filter)
+  c       Create new task (full form with metadata)
   1/2/3   Set priority (p1/p2/p3)
   s       Change task state (open/done/etc)
   x       Delete task/project
@@ -680,15 +680,63 @@ func (m Model) renderPreview() string {
 }
 
 func (m Model) renderCreate() string {
-	itemType := "Note"
-	if m.viewMode == ViewModeTasks {
-		itemType = "Task"
+	if m.viewMode != ViewModeTasks {
+		// Simple create for notes
+		prompt := titleStyle.Render("Create New Note")
+		input := baseStyle.Render(fmt.Sprintf("\nTitle: %s█", m.createTitle))
+		help := helpStyle.Render("\nEnter to continue, Esc to cancel")
+		return prompt + input + help
 	}
-	prompt := titleStyle.Render(fmt.Sprintf("Create New %s", itemType))
-	input := baseStyle.Render(fmt.Sprintf("\nTitle: %s█", m.createTitle))
-	help := helpStyle.Render("\nEnter to continue, Esc to cancel")
 	
-	return prompt + input + help
+	// Full task creation form
+	prompt := titleStyle.Render("Create New Task")
+	
+	// Build form with all fields
+	var form strings.Builder
+	form.WriteString("\n")
+	
+	fields := []struct {
+		label string
+		value string
+		hint  string
+	}{
+		{"Title", m.createTitle, "required"},
+		{"Priority", m.createPriority, "p1, p2, p3"},
+		{"Due Date", m.createDue, "YYYY-MM-DD or natural language"},
+		{"Area", m.areaFilter, "inherited from filter"},
+		{"Project", m.createProject, "project ID"},
+		{"Estimate", m.createEstimate, "time estimate"},
+		{"Tags", m.createTags, "space-separated"},
+	}
+	
+	for i, field := range fields {
+		if i == m.createField {
+			// Active field with cursor
+			if field.label == "Area" && m.areaFilter != "" {
+				// Area is read-only when filtered
+				form.WriteString(fmt.Sprintf("  %s: %s (inherited)\n", field.label, field.value))
+			} else {
+				form.WriteString(fmt.Sprintf("→ %s: %s█", field.label, field.value))
+				if field.hint != "" {
+					form.WriteString(fmt.Sprintf(" (%s)", field.hint))
+				}
+				form.WriteString("\n")
+			}
+		} else {
+			// Inactive field
+			if field.label == "Area" && m.areaFilter != "" {
+				form.WriteString(fmt.Sprintf("  %s: %s (inherited)\n", field.label, field.value))
+			} else if field.value != "" {
+				form.WriteString(fmt.Sprintf("  %s: %s\n", field.label, field.value))
+			} else {
+				form.WriteString(fmt.Sprintf("  %s: (%s)\n", field.label, field.hint))
+			}
+		}
+	}
+	
+	help := helpStyle.Render("\n↑/↓ to navigate, Enter to save, Esc to cancel")
+	
+	return prompt + baseStyle.Render(form.String()) + help
 }
 
 func (m Model) renderCreateTags() string {

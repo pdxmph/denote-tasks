@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	
@@ -51,8 +52,13 @@ type Model struct {
 	previewMaxScroll int
 	
 	// Create mode
-	createTitle string
-	createTags  string
+	createTitle    string
+	createTags     string
+	createPriority string
+	createDue      string
+	createEstimate string
+	createProject  string
+	createField    int // Which field is being edited in create mode
 	
 	// Task view mode
 	viewingTask     *denote.Task
@@ -420,6 +426,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scanFiles()
 		m.statusMsg = "Task created: " + msg.path + " (press 'e' to edit)"
 		
+		// Reset create fields
+		m.resetCreateFields()
+		
 		// Try to position cursor on the newly created task
 		for i, f := range m.filtered {
 			if f.Path == msg.path {
@@ -521,6 +530,71 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) resetCreateFields() {
+	m.createTitle = ""
+	m.createTags = ""
+	m.createPriority = ""
+	m.createDue = ""
+	m.createEstimate = ""
+	m.createProject = ""
+	m.createField = 0
+}
+
+func (m Model) createTask() tea.Cmd {
+	return func() tea.Msg {
+		// Parse tags
+		tags := []string{}
+		if m.createTags != "" {
+			tags = strings.Fields(m.createTags)
+		}
+		
+		// Create the task
+		newTask, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.areaFilter)
+		if err != nil {
+			return err
+		}
+		
+		// Update metadata if provided
+		needsUpdate := false
+		
+		if m.createPriority != "" {
+			newTask.TaskMetadata.Priority = m.createPriority
+			needsUpdate = true
+		}
+		
+		if m.createDue != "" {
+			// Parse due date
+			parsedDue, err := denote.ParseNaturalDate(m.createDue)
+			if err == nil {
+				newTask.TaskMetadata.DueDate = parsedDue
+				needsUpdate = true
+			}
+		}
+		
+		if m.createProject != "" {
+			newTask.TaskMetadata.ProjectID = m.createProject
+			needsUpdate = true
+		}
+		
+		if m.createEstimate != "" {
+			// Parse estimate as integer
+			if estimate, err := strconv.Atoi(m.createEstimate); err == nil {
+				newTask.TaskMetadata.Estimate = estimate
+				needsUpdate = true
+			}
+		}
+		
+		// Write updated metadata if needed
+		if needsUpdate {
+			if err := task.UpdateTaskFile(newTask.File.Path, newTask.TaskMetadata); err != nil {
+				return err
+			}
+		}
+		
+		return taskCreatedMsg{path: newTask.File.Path}
+	}
+}
+
 func (m Model) create() tea.Cmd {
 	return func() tea.Msg {
 		// Parse tags
@@ -530,7 +604,7 @@ func (m Model) create() tea.Cmd {
 		}
 		
 		if m.viewMode == ViewModeTasks {
-			// Create a task with area filter
+			// Use the new createTask for tasks (this path is for the old flow)
 			task, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.areaFilter)
 			if err != nil {
 				return err
