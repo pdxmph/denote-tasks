@@ -27,6 +27,44 @@ Features that compile but haven't been tested must be marked as "IMPLEMENTED BUT
 11. **✅ Project sorting** - Groups tasks by project assignment
 12. **✅ Fixed cyan project display** - Active projects now properly show in cyan
 
+### Additional Completed Features
+
+13. **✅ Task Logging**:
+    - Press 'l' on a task to add a log entry from:
+      - Task list (stays in list after saving)
+      - Task view (refreshes to show new log entry)
+    - Opens input form for typing log text  
+    - Inserts timestamped entry below frontmatter: `[2025-01-14 Tue]: (your text)`
+    - Cancel with Esc, save with Enter
+    - Help text updated to show 'l:log' hotkey in both views
+    - Only available for tasks, not projects or notes
+    - Log entries are highlighted in blue in task view
+    - Content refreshes immediately after adding a log entry
+    - Fixed duplication issue - content now appears only once below metadata
+    
+### Implementation Details for Task Logging
+
+- Added `ModeLogEntry` to the Mode enum
+- Added `logInput` and `loggingFile` fields to Model struct
+- Created `handleLogEntryKeys` function for input handling
+- Created `renderLogEntry` view function for the input form
+- Implemented `addLogEntry` method that:
+  - Finds the end of frontmatter
+  - Formats timestamp using Go's reference time
+  - Inserts log entry with blank line after frontmatter
+  - Preserves existing file content
+  - Handles edge cases with existing blank lines
+  - Reloads file metadata after saving
+
+### Bug Fixes Applied
+- Fixed issue where empty log input could cause silent failure
+- Added proper handling for existing blank lines after frontmatter
+- Improved error messages for debugging
+- Fixed duplication issue - content now appears only once below metadata
+- **Fixed navigation**: Now stays in task view after adding log from task view
+- **Removed caching**: Tasks and projects now always load fresh from disk
+- **Fixed staleness**: External edits and log entries from task list now show immediately
+
 ### Key Technical Solutions
 
 1. **Sorting Fix**: Changed from checking map values to using pointer receiver for updates

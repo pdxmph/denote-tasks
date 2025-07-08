@@ -565,6 +565,7 @@ func (m Model) renderFooter() string {
 			"s:state",
 			"x:delete",
 			"e:edit",
+			"l:log",
 			"f:filter",
 			"p:projects",
 			"S:sort",
@@ -612,6 +613,7 @@ Task Actions:
   x       Delete task/project
   e       Edit task in external editor
   u       Update task metadata
+  l       Add log entry to task
   /       Fuzzy search (use #tag for tag search)
   f       Filter menu (area/priority/state/soon)
   p       Toggle projects view
@@ -967,4 +969,22 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max-3] + "..."
+}
+
+func (m Model) renderLogEntry() string {
+	if m.loggingFile == nil {
+		return "No task selected"
+	}
+	
+	title := m.loggingFile.Title
+	if task, ok := m.taskMetadata[m.loggingFile.Path]; ok && task.TaskMetadata.Title != "" {
+		title = task.TaskMetadata.Title
+	}
+	
+	prompt := titleStyle.Render("Add Log Entry")
+	taskInfo := baseStyle.Render(fmt.Sprintf("\nTask: %s", title))
+	input := baseStyle.Render(fmt.Sprintf("\n\nLog entry: %s█", m.logInput))
+	help := helpStyle.Render("\n\nEnter to save, Esc to cancel")
+	
+	return prompt + taskInfo + input + help
 }

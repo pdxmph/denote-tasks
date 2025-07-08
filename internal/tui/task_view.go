@@ -61,12 +61,27 @@ func (m Model) renderTaskView() string {
 	// Add body content
 	bodyContent := m.getBodyContent()
 	if bodyContent != "" {
-		// Wrap long lines for readability
+		// Process content line by line to highlight log entries
+		lines := strings.Split(bodyContent, "\n")
+		var styledLines []string
+		
+		for _, line := range lines {
+			// Highlight log entries
+			if strings.Contains(line, "]:") && strings.HasPrefix(line, "[") {
+				// This looks like a log entry
+				styledLines = append(styledLines, lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(line))
+			} else {
+				styledLines = append(styledLines, line)
+			}
+		}
+		
+		// Join and wrap for readability
+		styledContent := strings.Join(styledLines, "\n")
 		maxWidth := 80
 		if m.width > 0 && m.width < maxWidth {
 			maxWidth = m.width - 4
 		}
-		wrapped := wrapText(bodyContent, maxWidth)
+		wrapped := wrapText(styledContent, maxWidth)
 		sections = append(sections, "\n"+wrapped)
 	} else {
 		sections = append(sections, "\n"+helpStyle.Render("(no notes)"))
@@ -85,6 +100,7 @@ func (m Model) renderTaskView() string {
 	}
 	if m.viewingTask != nil {
 		hints = append(hints, "t:estimate")
+		hints = append(hints, "l:log")
 	}
 	footer := "\n" + hintStyle.Render(strings.Join(hints, " • "))
 	sections = append(sections, footer)
@@ -195,6 +211,7 @@ func (m Model) renderTaskDetails() string {
 	lines = append(lines, "")
 	lines = append(lines, m.renderField("File", m.viewingFile.Path, ""))
 	lines = append(lines, m.renderField("ID", task.File.ID, ""))
+	
 	
 	return strings.Join(lines, "\n")
 }

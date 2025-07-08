@@ -37,6 +37,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePriorityFilterKeys(msg)
 	case ModeStateFilter:
 		return m.handleStateFilterKeys(msg)
+	case ModeLogEntry:
+		return m.handleLogEntryKeys(msg)
 	default:
 		return m.handleNormalKeys(msg)
 	}
@@ -326,34 +328,20 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
 			file := m.filtered[m.cursor]
 			
-			// Load metadata if not already loaded
+			// Always load fresh from disk
 			if file.IsTask() {
-				task, ok := m.taskMetadata[file.Path]
-				if !ok {
-					if t, err := denote.ParseTaskFile(file.Path); err == nil {
-						m.taskMetadata[file.Path] = t
-						task = t
-						ok = true
-					}
-				}
-				if ok {
+				if task, err := denote.ParseTaskFile(file.Path); err == nil {
 					m.mode = ModeTaskView
 					m.viewingTask = task
 					m.viewingProject = nil
 					m.viewingFile = &file
 					m.editingField = ""
 					m.editBuffer = ""
+				} else {
+					m.statusMsg = fmt.Sprintf("Error loading task: %v", err)
 				}
 			} else if file.IsProject() {
-				project, ok := m.projectMetadata[file.Path]
-				if !ok {
-					if p, err := denote.ParseProjectFile(file.Path); err == nil {
-						m.projectMetadata[file.Path] = p
-						project = p
-						ok = true
-					}
-				}
-				if ok {
+				if project, err := denote.ParseProjectFile(file.Path); err == nil {
 					m.mode = ModeProjectView
 					m.viewingTask = nil
 					m.viewingProject = project
@@ -362,6 +350,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.editBuffer = ""
 					m.projectViewTab = 0 // Start on overview tab
 					m.loadProjectTasks() // Load tasks assigned to this project
+				} else {
+					m.statusMsg = fmt.Sprintf("Error loading project: %v", err)
 				}
 			} else {
 				// Fall back to preview for non-task files
@@ -395,34 +385,20 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
 			file := m.filtered[m.cursor]
 			
-			// Load metadata if not already loaded
+			// Always load fresh from disk
 			if file.IsTask() {
-				task, ok := m.taskMetadata[file.Path]
-				if !ok {
-					if t, err := denote.ParseTaskFile(file.Path); err == nil {
-						m.taskMetadata[file.Path] = t
-						task = t
-						ok = true
-					}
-				}
-				if ok {
+				if task, err := denote.ParseTaskFile(file.Path); err == nil {
 					m.mode = ModeTaskView
 					m.viewingTask = task
 					m.viewingProject = nil
 					m.viewingFile = &file
 					m.editingField = ""
 					m.editBuffer = ""
+				} else {
+					m.statusMsg = fmt.Sprintf("Error loading task: %v", err)
 				}
 			} else if file.IsProject() {
-				project, ok := m.projectMetadata[file.Path]
-				if !ok {
-					if p, err := denote.ParseProjectFile(file.Path); err == nil {
-						m.projectMetadata[file.Path] = p
-						project = p
-						ok = true
-					}
-				}
-				if ok {
+				if project, err := denote.ParseProjectFile(file.Path); err == nil {
 					m.mode = ModeProjectView
 					m.viewingTask = nil
 					m.viewingProject = project
@@ -431,6 +407,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.editBuffer = ""
 					m.projectViewTab = 0 // Start on overview tab
 					m.loadProjectTasks() // Load tasks assigned to this project
+				} else {
+					m.statusMsg = fmt.Sprintf("Error loading project: %v", err)
 				}
 			}
 		}
@@ -473,6 +451,19 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Toggle reverse sort
 		m.reverseSort = !m.reverseSort
 		m.sortFiles()
+		
+	case "l":
+		// Log entry - only for tasks
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			if file.IsTask() {
+				m.mode = ModeLogEntry
+				m.logInput = ""
+				m.loggingFile = &file
+			} else {
+				m.statusMsg = "Log entries only available for tasks"
+			}
+		}
 		
 	case "p":
 		// Toggle project filter
@@ -971,6 +962,77 @@ func (m Model) handleStateFilterKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.applyFilters()
 		m.sortFiles()
 		m.loadVisibleMetadata()
+	}
+	
+	return m, nil
+}
+
+func (m Model) handleLogEntryKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		// Cancel log entry
+		// Return to where we came from
+		if m.viewingFile != nil {
+			m.mode = ModeTaskView
+		} else {
+			m.mode = ModeNormal
+		}
+		m.logInput = ""
+		m.loggingFile = nil
+		m.statusMsg = "Log entry cancelled"
+		
+	case "enter":
+		// Save log entry
+		if m.logInput != "" && m.loggingFile != nil {
+			if err := m.addLogEntry(); err != nil {
+				m.statusMsg = fmt.Sprintf("Error adding log: %v", err)
+			} else {
+				m.statusMsg = "Log entry added"
+				
+				// If we're viewing this task, reload it completely to show the new log entry
+				if m.viewingFile != nil && m.viewingFile.Path == m.loggingFile.Path {
+					// Reload the task with fresh content
+					if task, err := denote.ParseTaskFile(m.loggingFile.Path); err == nil {
+						m.viewingTask = task
+						// Return to task view
+						m.mode = ModeTaskView
+						m.logInput = ""
+						m.loggingFile = nil
+						return m, nil
+					}
+				}
+				
+				// If we're previewing this file, update the preview
+				if m.previewFile != nil && m.previewFile.Path == m.loggingFile.Path {
+					// Force refresh by clearing and resetting
+					m.previewFile = m.loggingFile
+				}
+				
+				// Reload file metadata after modification
+				m.loadVisibleMetadata()
+			}
+		} else {
+			m.statusMsg = "No log text entered"
+		}
+		
+		// If we were in task view, return there, otherwise go to normal mode
+		if m.viewingFile != nil {
+			m.mode = ModeTaskView
+		} else {
+			m.mode = ModeNormal
+		}
+		m.logInput = ""
+		m.loggingFile = nil
+		
+	case "backspace":
+		if len(m.logInput) > 0 {
+			m.logInput = m.logInput[:len(m.logInput)-1]
+		}
+		
+	default:
+		if len(msg.String()) == 1 {
+			m.logInput += msg.String()
+		}
 	}
 	
 	return m, nil

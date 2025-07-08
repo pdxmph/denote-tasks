@@ -126,6 +126,7 @@ mkdir ~/denote-test
 2. **Don't assume TUI works** - It needs terminal testing
 3. **Don't add non-Denote features** - Stay pure to the spec
 4. **Don't forget PROGRESS.md** - Update it regularly
+5. **Don't add caching** - We're working with small text files. Always question any caching you find and ask if we can remove it. Caching causes staleness bugs without meaningful performance benefits.
 
 ## Questions/Decisions
 
@@ -133,6 +134,14 @@ mkdir ~/denote-test
 - **Why not fork notes-tui?** - Too much legacy, want clean start
 - **Why unified architecture?** - Easier maintenance, consistent behavior
 
+## Performance Philosophy
+
+We prioritize simplicity and correctness over premature optimization:
+- Always read files fresh from disk - no caching
+- These are small markdown files (typically < 200 lines)
+- File I/O is negligible compared to user interaction time
+- Eliminating cache eliminates an entire class of staleness bugs
+
 ---
 
-Last updated: 2025-01-13 by Claude (Session on TUI implementation)
+Last updated: 2025-01-14 by Claude (Session on task logging and cache removal)

@@ -120,6 +120,14 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.editFile(m.viewingFile.Path)
 		}
 		
+	case "l":
+		// Log entry - only for tasks
+		if m.viewingTask != nil && m.viewingFile != nil {
+			m.mode = ModeLogEntry
+			m.logInput = ""
+			m.loggingFile = m.viewingFile
+		}
+		
 	// Field edit hotkeys
 	case "p":
 		m.editingField = "priority"
@@ -183,10 +191,6 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if newPath != oldPath {
 				// Update references
 				m.viewingFile.Path = newPath
-				if task, ok := m.taskMetadata[oldPath]; ok {
-					delete(m.taskMetadata, oldPath)
-					m.taskMetadata[newPath] = task
-				}
 				// Trigger a rescan to update the file list
 				m.scanFiles()
 				m.statusMsg = "File renamed to match tags"

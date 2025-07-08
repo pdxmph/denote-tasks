@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 	
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -71,6 +72,10 @@ type Model struct {
 	err        error
 	statusMsg  string
 	lastKey    string
+	
+	// Log entry mode
+	logInput     string // Current log entry being typed
+	loggingFile  *denote.File // File we're adding log to
 }
 
 type Mode int
@@ -91,6 +96,7 @@ const (
 	ModeFilterMenu
 	ModePriorityFilter
 	ModeStateFilter
+	ModeLogEntry
 )
 
 type ViewMode int
@@ -205,27 +211,23 @@ func (m *Model) loadVisibleMetadata() {
 		end = len(m.filtered)
 	}
 	
-	// Load metadata for visible files
+	// Always load fresh metadata for visible files
 	for i := start; i < end; i++ {
 		file := &m.filtered[i]
 		if file.IsTask() {
-			if _, exists := m.taskMetadata[file.Path]; !exists {
-				if task, err := denote.ParseTaskFile(file.Path); err == nil {
-					m.taskMetadata[file.Path] = task
-					// Update the title with metadata title
-					if task.TaskMetadata.Title != "" {
-						file.Title = task.TaskMetadata.Title
-					}
+			if task, err := denote.ParseTaskFile(file.Path); err == nil {
+				m.taskMetadata[file.Path] = task
+				// Update the title with metadata title
+				if task.TaskMetadata.Title != "" {
+					file.Title = task.TaskMetadata.Title
 				}
 			}
 		} else if file.IsProject() {
-			if _, exists := m.projectMetadata[file.Path]; !exists {
-				if project, err := denote.ParseProjectFile(file.Path); err == nil {
-					m.projectMetadata[file.Path] = project
-					// Update the title with metadata title
-					if project.ProjectMetadata.Title != "" {
-						file.Title = project.ProjectMetadata.Title
-					}
+			if project, err := denote.ParseProjectFile(file.Path); err == nil {
+				m.projectMetadata[file.Path] = project
+				// Update the title with metadata title
+				if project.ProjectMetadata.Title != "" {
+					file.Title = project.ProjectMetadata.Title
 				}
 			}
 		}
@@ -1124,7 +1126,86 @@ func (m Model) View() string {
 		return m.renderPriorityFilter()
 	case ModeStateFilter:
 		return m.renderStateFilter()
+	case ModeLogEntry:
+		return m.renderLogEntry()
 	default:
 		return m.renderNormal()
 	}
+}
+
+func (m *Model) addLogEntry() error {
+	if m.loggingFile == nil || m.logInput == "" {
+		return fmt.Errorf("no file selected or empty log input")
+	}
+	
+	// Read the file
+	content, err := os.ReadFile(m.loggingFile.Path)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+	
+	// Find the end of frontmatter
+	lines := strings.Split(string(content), "\n")
+	frontmatterEnd := -1
+	inFrontmatter := false
+	
+	for i, line := range lines {
+		if i == 0 && line == "---" {
+			inFrontmatter = true
+			continue
+		}
+		if inFrontmatter && line == "---" {
+			frontmatterEnd = i
+			break
+		}
+	}
+	
+	if frontmatterEnd == -1 {
+		return fmt.Errorf("no frontmatter found in file")
+	}
+	
+	// Format the log entry with timestamp
+	now := time.Now()
+	// Use reference time to get day name: Mon Jan 2 15:04:05 MST 2006
+	timestamp := now.Format("[2006-01-02 Mon]")
+	logEntry := fmt.Sprintf("%s: %s", timestamp, m.logInput)
+	
+	// Build the new content
+	var newLines []string
+	
+	// Add frontmatter
+	newLines = append(newLines, lines[:frontmatterEnd+1]...)
+	
+	// Find where to insert the log entry
+	insertPos := frontmatterEnd + 1
+	
+	// Skip any existing blank lines after frontmatter
+	for insertPos < len(lines) && lines[insertPos] == "" {
+		insertPos++
+	}
+	
+	// Add a blank line if needed
+	if insertPos == frontmatterEnd+1 || (insertPos < len(lines) && lines[insertPos-1] != "") {
+		newLines = append(newLines, "")
+	}
+	
+	// Add the log entry
+	newLines = append(newLines, logEntry)
+	
+	// Add the rest of the content
+	if insertPos < len(lines) {
+		// If there's existing content, ensure there's a blank line after our log entry
+		if lines[insertPos] != "" {
+			newLines = append(newLines, "")
+		}
+		newLines = append(newLines, lines[insertPos:]...)
+	}
+	
+	// Write back to file
+	newContent := strings.Join(newLines, "\n")
+	if err := os.WriteFile(m.loggingFile.Path, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+	
+	return nil
 }
