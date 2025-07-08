@@ -695,6 +695,24 @@ func (m Model) renderCreate() string {
 	var form strings.Builder
 	form.WriteString("\n")
 	
+	// Look up project name if we have a project ID
+	projectDisplay := m.createProject
+	projectHint := "press Enter to select"
+	if m.createProject != "" {
+		// Find project name
+		for _, f := range m.files {
+			if f.ID == m.createProject && f.IsProject() {
+				if proj, ok := m.projectMetadata[f.Path]; ok && proj.ProjectMetadata.Title != "" {
+					projectDisplay = proj.ProjectMetadata.Title
+				} else if f.Title != "" {
+					projectDisplay = f.Title
+				}
+				break
+			}
+		}
+		projectHint = "press Enter to change"
+	}
+	
 	fields := []struct {
 		label string
 		value string
@@ -704,7 +722,7 @@ func (m Model) renderCreate() string {
 		{"Priority", m.createPriority, "p1, p2, p3"},
 		{"Due Date", m.createDue, "YYYY-MM-DD or natural language"},
 		{"Area", m.areaFilter, "inherited from filter"},
-		{"Project", m.createProject, "project ID"},
+		{"Project", projectDisplay, projectHint},
 		{"Estimate", m.createEstimate, "time estimate"},
 		{"Tags", m.createTags, "space-separated"},
 	}
@@ -715,6 +733,15 @@ func (m Model) renderCreate() string {
 			if field.label == "Area" && m.areaFilter != "" {
 				// Area is read-only when filtered
 				form.WriteString(fmt.Sprintf("  %s: %s (inherited)\n", field.label, field.value))
+			} else if field.label == "Project" {
+				// Project is read-only - selection only
+				form.WriteString(fmt.Sprintf("→ %s: %s", field.label, field.value))
+				if field.value == "" {
+					form.WriteString(fmt.Sprintf(" (%s)", field.hint))
+				} else {
+					form.WriteString(fmt.Sprintf(" [%s]", field.hint))
+				}
+				form.WriteString("\n")
 			} else {
 				form.WriteString(fmt.Sprintf("→ %s: %s█", field.label, field.value))
 				if field.hint != "" {
@@ -1035,4 +1062,91 @@ func (m Model) renderLogEntry() string {
 	help := helpStyle.Render("\n\nEnter to save, Esc to cancel")
 	
 	return prompt + taskInfo + input + help
+}
+
+func (m Model) renderProjectSelect() string {
+	prompt := titleStyle.Render("Select Project")
+	
+	if len(m.projectSelectList) == 0 {
+		return prompt + "\n\n" + helpStyle.Render("No projects found.\n\nPress Esc to go back")
+	}
+	
+	// Build project list
+	var lines []string
+	
+	// Add "None" option at the top to unassign
+	selector := " "
+	if m.projectSelectCursor == 0 {
+		selector = ">"
+	}
+	noneLine := fmt.Sprintf("%s 0. ✗ (None - unassign from project)", selector)
+	if m.projectSelectCursor == 0 {
+		lines = append(lines, selectedStyle.Render(noneLine))
+	} else {
+		lines = append(lines, helpStyle.Render(noneLine))
+	}
+	
+	// Add projects starting from index 1
+	for i, project := range m.projectSelectList {
+		// Selection indicator (adjust for None option at position 0)
+		selector := " "
+		if i+1 == m.projectSelectCursor {
+			selector = ">"
+		}
+		
+		// Number for quick selection (1-9)
+		number := ""
+		if i < 9 {
+			number = fmt.Sprintf("%d. ", i+1)
+		} else {
+			number = "   "
+		}
+		
+		// Project status indicator
+		status := ""
+		switch project.ProjectMetadata.Status {
+		case denote.ProjectStatusActive, "":
+			status = "●" // Active
+		case denote.ProjectStatusCompleted:
+			status = "✓" // Completed
+		case denote.ProjectStatusPaused:
+			status = "⏸" // Paused
+		case denote.ProjectStatusCancelled:
+			status = "⨯" // Cancelled
+		}
+		
+		// Project title and area
+		title := project.ProjectMetadata.Title
+		if title == "" {
+			title = project.File.Title
+		}
+		
+		area := ""
+		if project.ProjectMetadata.Area != "" {
+			area = fmt.Sprintf(" (%s)", project.ProjectMetadata.Area)
+		}
+		
+		// Due date
+		due := ""
+		if project.ProjectMetadata.DueDate != "" {
+			due = fmt.Sprintf(" [%s]", project.ProjectMetadata.DueDate)
+		}
+		
+		// Format line
+		line := fmt.Sprintf("%s %s%s %s%s%s", selector, number, status, title, area, due)
+		
+		if i+1 == m.projectSelectCursor {
+			lines = append(lines, selectedStyle.Render(line))
+		} else if project.ProjectMetadata.Status == denote.ProjectStatusActive || project.ProjectMetadata.Status == "" {
+			lines = append(lines, cyanStyle.Render(line))
+		} else {
+			lines = append(lines, baseStyle.Render(line))
+		}
+	}
+	
+	list := strings.Join(lines, "\n")
+	
+	help := helpStyle.Render("\n\nj/k or ↑/↓: navigate • 0: unassign • 1-9: quick select • Enter: select • Esc: cancel")
+	
+	return prompt + "\n\n" + list + help
 }

@@ -983,6 +983,80 @@ Test that:
 4. The filter persists when navigating and using other features
 5. Help text shows the new command line option
 
+## Current Session Progress
+
+## Session Date: 2025-01-13
+
+### Overview
+Working on Issue #1 - Basic TUI for browsing notes. Focus is on implementing just the reading/browsing functionality, leaving task mode for Issue #2.
+
+### Session Summary
+
+#### Completed
+1. ✅ Created comprehensive task creation form with all metadata fields
+   - Title (required), Priority, Due Date, Area (inherited from filter), Project, Estimate, Tags
+   - Full form navigation with Tab/Shift+Tab and arrow keys
+   - Validation that title is required before saving
+   
+2. ✅ Fixed confusing UX where form reset after saving
+   - Now exits to task list after successful creation
+   - Shows newly created task with cursor positioned on it
+   - Displays status message confirming creation
+
+3. ✅ Implemented project selection interface for better UX
+   - Created ModeProjectSelect mode with visual project list
+   - Shows projects by name instead of requiring ID entry
+   - Navigation: j/k or arrow keys, 0 to unassign, 1-9 for quick selection
+   - Works from both task creation and task update contexts
+   - Added 'j' hotkey in task view to assign/change project
+   - Project names displayed in task view instead of IDs
+   - Added "None" option to unassign tasks from projects
+   - Changed help text to show "pro(j)ect" instead of "(j)roject"
+
+### Current Status
+**✅ TESTED AND WORKING** - The project selection interface has been implemented and confirmed working by the user.
+
+### Testing Required
+1. **Task Creation Form**
+   - Create tasks with various metadata combinations
+   - Verify validation (title required)
+   - Verify proper exit to task list after creation
+   - Test area inheritance from filter
+   - Verify project field is read-only and shows project names
+
+2. **Project Selection Interface**
+   - Test project selection during task creation (Enter on project field)
+   - Test project selection from task view (press 'j')
+   - Test navigation (j/k, 0 to unassign, 1-9 quick select, g/G for top/bottom)
+   - Verify project name display throughout the interface
+   - Test empty project list handling
+   - Verify that selecting a project properly updates the task
+   - Test escape to cancel selection
+   - Test the "None" option to unassign projects
+
+### Manual Testing Instructions
+```bash
+# Build the application
+go build -o denote-tasks main.go
+
+# Run with test config
+./denote-tasks --config test-config.toml --tui
+
+# Test the project selection:
+# 1. Press 't' to enter task mode
+# 2. Press 'c' to create a new task
+# 3. Navigate fields with Tab/Arrow keys
+# 4. On the Project field, press Enter
+# 5. You should see a project selection list
+# 6. Use j/k to navigate, 1-9 for quick select
+# 7. Press Enter to select, Esc to cancel
+
+# Also test from task view:
+# 1. Open a task with Enter
+# 2. Press 'j' to open project selection
+# 3. Select a project and verify it updates
+```
+
 ## Session: 2025-01-16 - Project Management & UI Polish
 
 ### What Was Done

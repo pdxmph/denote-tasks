@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -82,6 +83,12 @@ type Model struct {
 	// Log entry mode
 	logInput     string // Current log entry being typed
 	loggingFile  *denote.File // File we're adding log to
+	
+	// Project selection mode
+	projectSelectList   []*denote.Project
+	projectSelectCursor int
+	projectSelectFor    string // "create" or "update"
+	projectSelectTask   *denote.Task // For update mode
 }
 
 type Mode int
@@ -103,6 +110,7 @@ const (
 	ModePriorityFilter
 	ModeStateFilter
 	ModeLogEntry
+	ModeProjectSelect
 )
 
 type ViewMode int
@@ -538,6 +546,26 @@ func (m *Model) resetCreateFields() {
 	m.createEstimate = ""
 	m.createProject = ""
 	m.createField = 0
+}
+
+func (m *Model) loadProjectsForSelection() {
+	// Get all projects
+	m.projectSelectList = make([]*denote.Project, 0)
+	
+	for _, file := range m.files {
+		if file.IsProject() {
+			if project, ok := m.projectMetadata[file.Path]; ok {
+				m.projectSelectList = append(m.projectSelectList, project)
+			}
+		}
+	}
+	
+	// Sort by title
+	sort.Slice(m.projectSelectList, func(i, j int) bool {
+		return m.projectSelectList[i].ProjectMetadata.Title < m.projectSelectList[j].ProjectMetadata.Title
+	})
+	
+	m.projectSelectCursor = 0
 }
 
 func (m Model) createTask() tea.Cmd {
@@ -1202,6 +1230,8 @@ func (m Model) View() string {
 		return m.renderStateFilter()
 	case ModeLogEntry:
 		return m.renderLogEntry()
+	case ModeProjectSelect:
+		return m.renderProjectSelect()
 	default:
 		return m.renderNormal()
 	}

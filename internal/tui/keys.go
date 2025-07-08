@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	
 	"github.com/charmbracelet/bubbletea"
 	"github.com/pdxmph/denote-tasks/internal/denote"
+	"github.com/pdxmph/denote-tasks/internal/task"
 )
 
 func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -39,6 +41,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleStateFilterKeys(msg)
 	case ModeLogEntry:
 		return m.handleLogEntryKeys(msg)
+	case ModeProjectSelect:
+		return m.handleProjectSelectKeys(msg)
 	default:
 		return m.handleNormalKeys(msg)
 	}
@@ -272,6 +276,20 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.resetCreateFields()
 		
 	case "enter":
+		// Special handling for project field
+		if m.createField == 4 { // Project field
+			// Load projects and switch to selection mode
+			m.loadProjectsForSelection()
+			if len(m.projectSelectList) > 0 {
+				m.projectSelectFor = "create"
+				m.mode = ModeProjectSelect
+				return m, nil
+			} else {
+				m.statusMsg = "No projects found"
+				return m, nil
+			}
+		}
+		
 		// Validate and save
 		if m.createTitle == "" {
 			m.statusMsg = "Title is required"
@@ -321,9 +339,7 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case 3: // Area (only if not filtered)
 			// Skip - area is inherited from filter
 		case 4: // Project
-			if len(m.createProject) > 0 {
-				m.createProject = m.createProject[:len(m.createProject)-1]
-			}
+			// Skip - project is selected via project selection mode
 		case 5: // Estimate
 			if len(m.createEstimate) > 0 {
 				m.createEstimate = m.createEstimate[:len(m.createEstimate)-1]
@@ -347,7 +363,7 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case 3: // Area (only if not filtered)
 				// Skip - area is inherited from filter
 			case 4: // Project
-				m.createProject += msg.String()
+				// Skip - project is selected via project selection mode
 			case 5: // Estimate
 				m.createEstimate += msg.String()
 			case 6: // Tags
@@ -1127,6 +1143,101 @@ func (m Model) handleLogEntryKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	default:
 		if len(msg.String()) == 1 {
 			m.logInput += msg.String()
+		}
+	}
+	
+	return m, nil
+}
+func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		// Return to previous mode
+		if m.projectSelectFor == "create" {
+			m.mode = ModeCreate
+		} else if m.projectSelectFor == "update" {
+			m.mode = ModeTaskView
+		} else {
+			m.mode = ModeNormal
+		}
+		
+	case "enter":
+		// Select project or unassign
+		if m.projectSelectCursor == 0 {
+			// "None" option selected - unassign from project
+			if m.projectSelectFor == "create" {
+				// Clear project ID in create form
+				m.createProject = ""
+				m.mode = ModeCreate
+			} else if m.projectSelectFor == "update" && m.projectSelectTask != nil {
+				// Clear project assignment
+				m.projectSelectTask.TaskMetadata.ProjectID = ""
+				if err := task.UpdateTaskFile(m.projectSelectTask.File.Path, m.projectSelectTask.TaskMetadata); err != nil {
+					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
+				} else {
+					m.statusMsg = "Removed from project"
+					// Reload task if we are viewing it
+					if m.viewingTask != nil && m.viewingTask.File.Path == m.projectSelectTask.File.Path {
+						m.viewingTask = m.projectSelectTask
+					}
+				}
+				m.mode = ModeTaskView
+			}
+		} else if m.projectSelectCursor-1 < len(m.projectSelectList) {
+			// Project selected (adjust for None option at index 0)
+			selected := m.projectSelectList[m.projectSelectCursor-1]
+			
+			if m.projectSelectFor == "create" {
+				// Set project ID in create form
+				m.createProject = selected.File.ID
+				m.mode = ModeCreate
+			} else if m.projectSelectFor == "update" && m.projectSelectTask != nil {
+				// Update task with selected project
+				m.projectSelectTask.TaskMetadata.ProjectID = selected.File.ID
+				if err := task.UpdateTaskFile(m.projectSelectTask.File.Path, m.projectSelectTask.TaskMetadata); err != nil {
+					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
+				} else {
+					m.statusMsg = fmt.Sprintf("Added to project: %s", selected.ProjectMetadata.Title)
+					// Reload task if we are viewing it
+					if m.viewingTask != nil && m.viewingTask.File.Path == m.projectSelectTask.File.Path {
+						m.viewingTask = m.projectSelectTask
+					}
+				}
+				m.mode = ModeTaskView
+			}
+		}
+		
+	case "j", "down":
+		// Account for None option at index 0
+		if m.projectSelectCursor < len(m.projectSelectList) {
+			m.projectSelectCursor++
+		}
+		
+	case "k", "up":
+		if m.projectSelectCursor > 0 {
+			m.projectSelectCursor--
+		}
+		
+	case "g":
+		m.projectSelectCursor = 0
+		
+	case "G":
+		if len(m.projectSelectList) > 0 {
+			m.projectSelectCursor = len(m.projectSelectList) // Last project, not None
+		}
+		
+	// Allow number selection (0-9)
+	case "0":
+		// Select "None" option
+		m.projectSelectCursor = 0
+		// Auto-select
+		return m.handleProjectSelectKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{rune(tea.KeyEnter)}})
+		
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		num, _ := strconv.Atoi(msg.String())
+		if num <= len(m.projectSelectList) {
+			m.projectSelectCursor = num // 1-9 maps to cursor positions 1-9 (after None at 0)
+			// Auto-select
+			return m.handleProjectSelectKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{rune(tea.KeyEnter)}})
 		}
 	}
 	

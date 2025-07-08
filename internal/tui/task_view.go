@@ -99,6 +99,7 @@ func (m Model) renderTaskView() string {
 		"r:rename",
 	}
 	if m.viewingTask != nil {
+		hints = append(hints, "j:project")
 		hints = append(hints, "t:estimate")
 		hints = append(hints, "l:log")
 	}
@@ -199,8 +200,23 @@ func (m Model) renderTaskDetails() string {
 		lines = append(lines, m.renderField("Start Date", meta.StartDate, ""))
 	}
 	
+	// Project with name lookup
 	if meta.ProjectID != "" {
-		lines = append(lines, m.renderField("Project", meta.ProjectID, ""))
+		projectName := meta.ProjectID
+		// Look up project name from cached metadata or file list
+		for _, f := range m.files {
+			if f.ID == meta.ProjectID && f.IsProject() {
+				if proj, ok := m.projectMetadata[f.Path]; ok && proj.ProjectMetadata.Title != "" {
+					projectName = proj.ProjectMetadata.Title
+				} else if f.Title != "" {
+					projectName = f.Title
+				}
+				break
+			}
+		}
+		lines = append(lines, m.renderField("Project", projectName, "j"))
+	} else {
+		lines = append(lines, m.renderField("Project", "(not set)", "j"))
 	}
 	
 	if meta.Assignee != "" {
@@ -371,6 +387,8 @@ func (m Model) renderField(label, value, hotkey string) string {
 			labelText = "es(t)imate:"
 		case hotkey == "g" && label == "Tags":
 			labelText = "ta(g)s:"
+		case hotkey == "j" && label == "Project":
+			labelText = "pro(j)ect:"
 		default:
 			labelText = fmt.Sprintf("(%s)%s:", hotkey, label[1:])
 		}

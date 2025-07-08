@@ -160,6 +160,20 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Enter time estimate (1/2/3/5/8/13):"
 		}
 		
+	case "j":
+		// Project selection - only for tasks
+		if m.viewingTask != nil {
+			// Load projects and switch to selection mode
+			m.loadProjectsForSelection()
+			if len(m.projectSelectList) > 0 {
+				m.projectSelectFor = "update"
+				m.projectSelectTask = m.viewingTask
+				m.mode = ModeProjectSelect
+			} else {
+				m.statusMsg = "No projects found"
+			}
+		}
+		
 	case "g":
 		m.editingField = "tags"
 		// Pre-fill with current tags
