@@ -211,7 +211,12 @@ func taskListCommand(cfg *config.Config) *Command {
 				continue
 			}
 
-			if area != "" && t.TaskMetadata.Area != area {
+			// Use command-specific area filter or fall back to global
+			filterArea := area
+			if filterArea == "" {
+				filterArea = globalFlags.Area
+			}
+			if filterArea != "" && t.TaskMetadata.Area != filterArea {
 				continue
 			}
 

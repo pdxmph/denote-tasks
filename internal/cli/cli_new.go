@@ -31,8 +31,11 @@ func RunNew(cfg *config.Config, args []string) error {
 	}
 
 	// If no arguments or just --tui, launch TUI
-	if len(remaining) == 0 || (len(remaining) == 0 && globalFlags.TUI) {
+	if len(remaining) == 0 || globalFlags.TUI {
 		if globalFlags.TUI || len(os.Args) == 1 {
+			if globalFlags.Area != "" {
+				return tui.Run(cfg, globalFlags.Area)
+			}
 			return tui.Run(cfg)
 		}
 	}
@@ -50,6 +53,7 @@ Commands:
 
 Global Options:
   --tui, -t      Launch TUI interface
+  --area AREA    Filter by area (for TUI or commands)
   --config PATH  Use specific config file
   --dir PATH     Override notes directory
   --json         Output in JSON format

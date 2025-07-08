@@ -16,7 +16,8 @@ These options can be used with any command:
 
 - `--config PATH` - Use specific config file
 - `--dir PATH` - Override notes directory  
-- `--tui, -t` - Launch TUI interface (not yet implemented)
+- `--area AREA` - Filter by area (for TUI or commands)
+- `--tui, -t` - Launch TUI interface
 - `--json` - Output in JSON format (not yet implemented)
 - `--no-color` - Disable color output
 - `--quiet, -q` - Minimal output
@@ -176,7 +177,33 @@ For compatibility with the old CLI:
 - `denote-tasks list` → `denote-tasks task list`
 - `denote-tasks done` → `denote-tasks task done`
 
+## TUI Launch Examples
+
+```bash
+# Launch TUI
+denote-tasks --tui
+
+# Launch TUI filtered to work area
+denote-tasks --tui --area work
+
+# Launch TUI filtered to personal area
+denote-tasks --tui --area personal
+```
+
 ## Examples
+
+### Using global area filter
+
+```bash
+# List only work tasks
+denote-tasks --area work task list
+
+# List only personal tasks with p1 priority
+denote-tasks --area personal task list -p p1
+
+# The global --area flag works with any command
+denote-tasks --area work task done 28,35
+```
 
 ### Daily workflow
 

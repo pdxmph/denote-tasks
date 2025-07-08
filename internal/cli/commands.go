@@ -82,6 +82,7 @@ type GlobalFlags struct {
 	NoColor  bool
 	JSON     bool
 	Quiet    bool
+	Area     string
 }
 
 var globalFlags GlobalFlags
@@ -95,12 +96,14 @@ func ParseGlobalFlags(args []string) ([]string, error) {
 		arg := args[i]
 		
 		// Check if this is a global flag with value
-		if (arg == "--config" || arg == "--dir") && i+1 < len(args) {
+		if (arg == "--config" || arg == "--dir" || arg == "--area") && i+1 < len(args) {
 			switch arg {
 			case "--config":
 				globalFlags.Config = args[i+1]
 			case "--dir":
 				globalFlags.Dir = args[i+1]
+			case "--area":
+				globalFlags.Area = args[i+1]
 			}
 			i += 2
 			continue
@@ -134,6 +137,11 @@ func ParseGlobalFlags(args []string) ([]string, error) {
 		}
 		if strings.HasPrefix(arg, "--dir=") {
 			globalFlags.Dir = strings.TrimPrefix(arg, "--dir=")
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--area=") {
+			globalFlags.Area = strings.TrimPrefix(arg, "--area=")
 			i++
 			continue
 		}
