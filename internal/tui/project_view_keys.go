@@ -138,7 +138,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editingField = "s"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Status
 			m.statusMsg = "Enter status (active/completed/paused/cancelled):"
-		} else if m.projectViewTab == 1 && len(m.projectTasks) > 0 {
+		} else if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
 			// In tasks tab, 's' opens state menu
 			m.mode = ModeStateMenu
 			return m, nil
@@ -169,19 +169,35 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Enter tags (space-separated):"
 		}
 		
-	// Keys for tasks tab
+	case "n":
+		// Create new task with this project pre-selected
+		m.mode = ModeCreate
+		m.resetCreateFields()
+		// Pre-fill the project ID from the current project
+		if m.viewingProject != nil {
+			m.createProject = m.viewingProject.File.ID
+		}
+		// Pre-fill area if the project has one
+		if m.viewingProject != nil && m.viewingProject.ProjectMetadata.Area != "" {
+			m.areaFilter = m.viewingProject.ProjectMetadata.Area
+		}
+		m.creatingFromProject = true
+		m.statusMsg = "Creating new task for project"
+		return m, nil
+		
+	// Keys for task navigation (on main tab)
 	case "j", "down":
-		if m.projectViewTab == 1 && m.projectTasksCursor < len(m.projectTasks)-1 {
+		if m.projectViewTab == 0 && m.projectTasksCursor < len(m.projectTasks)-1 {
 			m.projectTasksCursor++
 		}
 		
 	case "k", "up":
-		if m.projectViewTab == 1 && m.projectTasksCursor > 0 {
+		if m.projectViewTab == 0 && m.projectTasksCursor > 0 {
 			m.projectTasksCursor--
 		}
 		
 	case "enter":
-		if m.projectViewTab == 1 && len(m.projectTasks) > 0 && m.projectTasksCursor < len(m.projectTasks) {
+		if m.projectViewTab == 0 && len(m.projectTasks) > 0 && m.projectTasksCursor < len(m.projectTasks) {
 			// Open the selected task
 			task := m.projectTasks[m.projectTasksCursor]
 			m.mode = ModeTaskView
@@ -194,7 +210,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 	case "1", "2", "3":
-		if m.projectViewTab == 1 && len(m.projectTasks) > 0 {
+		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
 			// Set priority on selected task
 			task := &m.projectTasks[m.projectTasksCursor]
 			priority := "p" + msg.String()
@@ -206,17 +222,27 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 	case "x":
-		// Delete task (in tasks tab) or project (in overview tab)
-		if m.projectViewTab == 1 && len(m.projectTasks) > 0 {
+		// On main tab (0): delete selected task if cursor is on a task
+		if m.projectViewTab == 0 && len(m.projectTasks) > 0 && m.projectTasksCursor < len(m.projectTasks) {
 			// Deleting a task
 			m.mode = ModeConfirmDelete
 			return m, nil
-		} else if m.projectViewTab == 0 {
+		}
+		
+	case "X":
+		// Capital X to delete the project itself (only on main tab)
+		if m.projectViewTab == 0 {
 			// Deleting the project itself - find affected tasks first
 			m.findTasksAffectedByProjectDeletion()
 			m.mode = ModeConfirmDelete
 			return m, nil
 		}
+		
+	// Sorting keys (same as task mode - uppercase S since lowercase s is for status)
+	case "S":
+		// Open sort menu
+		m.mode = ModeSort
+		return m, nil
 	}
 	
 	return m, nil

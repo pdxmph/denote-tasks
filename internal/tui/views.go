@@ -195,13 +195,9 @@ func (m Model) renderFileList() string {
 					showDividerAt = i
 					break
 				}
-			} else if project, ok := m.projectMetadata[file.Path]; ok {
-				// Same logic for projects
-				if (project.ProjectMetadata.DueDate != "" && project.ProjectMetadata.DueDate > todayStr) ||
-				   (project.ProjectMetadata.DueDate == "" && i > 0) {
-					showDividerAt = i
-					break
-				}
+			} else if _, ok := m.projectMetadata[file.Path]; ok {
+				// Skip projects - don't show divider for them
+				continue
 			}
 		}
 	}
@@ -621,7 +617,7 @@ func (m Model) renderFooter() string {
 			"x:delete",
 			"e:edit",
 			"t:task mode",
-			"s:sort",
+			"S:sort",
 			"r:reverse",
 			"?:help",
 			"q:quit",
@@ -681,7 +677,7 @@ Actions:
   e       Edit note in external editor
   t       Switch to Task mode
   /       Fuzzy search (use #tag for tag search)
-  s       Sort options menu
+  S       Sort options menu
   r       Toggle sort order
   
 Other:

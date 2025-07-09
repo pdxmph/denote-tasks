@@ -91,7 +91,63 @@ Created tabbed project view interface:
 
 **IMPLEMENTED BUT NOT TESTED:**
 
-1. **Enhanced Project Display in Task List**
+1. **Fixed sort key consistency and project view return** (2025-01-14)
+   - Unified sort key to uppercase 'S' across ALL modes (notes, tasks, projects)
+   - Fixed sort menu to return to project view (not main list) when sorting from project
+   - Sort menu now reloads project tasks after sorting
+   - Consistent interface: 'S' always means sort regardless of mode
+   
+   Implementation details:
+   - Changed notes mode from 's' to 'S' for consistency
+   - Added previousMode tracking in handleSortKeys
+   - Added loadProjectTasks() after sorting when in project view
+   - Updated all hints and help text to show 'S:sort'
+
+1. **Context-aware task creation from project view** (2025-01-14) - TESTED ✅
+   - Press 'n' in project view to create a new task
+   - Task is automatically assigned to the current project
+   - Area is pre-filled if the project has one
+   - After creation (or cancellation), returns to project view
+   - Switches to tasks tab to show the newly created task
+   - Help hints updated to show "n:new task"
+   
+   Implementation details:
+   - Added `creatingFromProject` flag to Model
+   - Modified project_view_keys.go to handle 'n' key
+   - Updated taskCreatedMsg handler to check context
+   - Pre-populates `createProject` field with project ID
+   
+2. **Reorganized project view to be task-focused** (2025-01-14)
+   - Main tab (0) now shows: editable metadata + task list
+   - Notes tab (1) shows: project notes/documentation
+   - Task navigation (j/k) works on main tab
+   - Task operations (1/2/3 priority, x delete) work on main tab
+   - Project deletion moved to capital X (to avoid conflict)
+   - Tab labels updated: "Tasks (n)" and "Notes"
+   
+   Implementation details:
+   - Renamed renderProjectOverview to renderProjectMain
+   - Created renderProjectNotes for notes content
+   - Updated all tab checks from 1 to 0 for task operations
+   - Split deletion: x for tasks, X for project
+   
+3. **Enhanced project task list with full metadata** (2025-01-14)
+   - Project tasks now display full metadata like main list:
+     - Status symbols (✓, ⏸, →, ⨯)
+     - Priority badges with colors
+     - Due dates with overdue/soon highlighting
+     - Tags from filename (excluding task/project)
+     - Area (when not filtering)
+   - Default sorting applied to project tasks
+   - Sort menu available with 'o' key
+   - Consistent formatting with main task list
+   
+   Implementation details:
+   - Updated loadProjectTasks to apply sorting
+   - Enhanced renderProjectTaskLine with full metadata
+   - Added sort key handling to project view
+   
+4. **Enhanced Project Display in Task List**
    - Projects now show priority [p1/p2/p3] like tasks
    - Projects show due dates with overdue highlighting
    - Priority coloring applied to projects

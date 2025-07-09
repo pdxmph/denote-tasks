@@ -60,6 +60,7 @@ type Model struct {
 	createEstimate string
 	createProject  string
 	createField    int // Which field is being edited in create mode
+	creatingFromProject bool // whether task creation was initiated from project view
 	
 	// Task view mode
 	viewingTask     *denote.Task
@@ -432,16 +433,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case taskCreatedMsg:
 		// Rescan files after task creation
 		m.scanFiles()
-		m.statusMsg = "Task created: " + msg.path + " (press 'e' to edit)"
 		
-		// Reset create fields
-		m.resetCreateFields()
-		
-		// Try to position cursor on the newly created task
-		for i, f := range m.filtered {
-			if f.Path == msg.path {
-				m.cursor = i
-				break
+		// Check if we were creating from project view
+		if m.creatingFromProject && m.viewingProject != nil {
+			// Reload project tasks
+			m.loadProjectTasks()
+			m.statusMsg = "Task created for project"
+			
+			// Reset create fields and flag
+			m.resetCreateFields()
+			m.creatingFromProject = false
+			
+			// Set mode back to project view
+			m.mode = ModeProjectView
+			m.projectViewTab = 1 // Switch to tasks tab
+			
+			// Try to position cursor on the newly created task in project tasks
+			for i, t := range m.projectTasks {
+				if t.File.Path == msg.path {
+					m.projectTasksCursor = i
+					break
+				}
+			}
+		} else {
+			m.statusMsg = "Task created: " + msg.path + " (press 'e' to edit)"
+			
+			// Reset create fields
+			m.resetCreateFields()
+			
+			// Set mode back to normal
+			m.mode = ModeNormal
+			
+			// Try to position cursor on the newly created task
+			for i, f := range m.filtered {
+				if f.Path == msg.path {
+					m.cursor = i
+					break
+				}
 			}
 		}
 		
@@ -1012,6 +1040,31 @@ func (m *Model) loadProjectTasks() {
 				}
 			}
 		}
+	}
+	
+	// Apply sorting to project tasks
+	if m.sortBy != "" && len(m.projectTasks) > 0 {
+		// Convert tasks to files for sorting
+		taskFiles := make([]denote.File, len(m.projectTasks))
+		for i, task := range m.projectTasks {
+			taskFiles[i] = task.File
+		}
+		
+		// Sort the files
+		denote.SortTaskFiles(taskFiles, m.sortBy, m.reverseSort, m.taskMetadata, m.projectMetadata)
+		
+		// Rebuild the task list in sorted order
+		sortedTasks := make([]denote.Task, len(m.projectTasks))
+		for i, file := range taskFiles {
+			// Find the matching task
+			for _, task := range m.projectTasks {
+				if task.File.Path == file.Path {
+					sortedTasks[i] = task
+					break
+				}
+			}
+		}
+		m.projectTasks = sortedTasks
 	}
 	
 	m.projectTasksCursor = 0

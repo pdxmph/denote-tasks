@@ -111,8 +111,8 @@ func (m Model) handleNormalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.createTitle = ""
 		m.createTags = ""
 		
-	case "s":
-		// Enter sort mode
+	case "S":
+		// Enter sort mode (uppercase for consistency across all modes)
 		m.mode = ModeSort
 		
 	case "r":
@@ -652,17 +652,26 @@ func (m Model) handleAreaFilterKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Store the previous mode to return to
+	previousMode := ModeNormal
+	if m.viewingProject != nil {
+		previousMode = ModeProjectView
+	}
+	
 	switch msg.String() {
 	case "esc", "ctrl+c", "q":
-		m.mode = ModeNormal
+		m.mode = previousMode
 		
 	case "d":
 		if m.viewMode == ViewModeTasks {
 			// Sort by due date (tasks only)
 			m.sortBy = "due"
-			m.mode = ModeNormal
+			m.mode = previousMode
 			m.sortFiles()
 			m.loadVisibleMetadata()
+			if m.viewingProject != nil {
+				m.loadProjectTasks()
+			}
 			m.statusMsg = "Sorted by due date"
 		}
 		
@@ -670,9 +679,12 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.viewMode == ViewModeTasks {
 			// Sort by priority (tasks only)
 			m.sortBy = "priority"
-			m.mode = ModeNormal
+			m.mode = previousMode
 			m.sortFiles()
 			m.loadVisibleMetadata()
+			if m.viewingProject != nil {
+				m.loadProjectTasks()
+			}
 			m.statusMsg = "Sorted by priority"
 		}
 		
@@ -680,9 +692,12 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.viewMode == ViewModeTasks {
 			// Sort by project (tasks only)
 			m.sortBy = "project"
-			m.mode = ModeNormal
+			m.mode = previousMode
 			m.sortFiles()
 			m.loadVisibleMetadata()
+			if m.viewingProject != nil {
+				m.loadProjectTasks()
+			}
 			m.statusMsg = "Sorted by project"
 		}
 		
@@ -690,18 +705,24 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.viewMode == ViewModeTasks {
 			// Sort by estimate (tasks only)
 			m.sortBy = "estimate"
-			m.mode = ModeNormal
+			m.mode = previousMode
 			m.sortFiles()
 			m.loadVisibleMetadata()
+			if m.viewingProject != nil {
+				m.loadProjectTasks()
+			}
 			m.statusMsg = "Sorted by estimate"
 		}
 		
 	case "t":
 		// Sort by title (both modes)
 		m.sortBy = "title"
-		m.mode = ModeNormal
+		m.mode = previousMode
 		m.sortFiles()
 		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
+		}
 		m.statusMsg = "Sorted by title"
 		
 	case "c":
@@ -711,17 +732,23 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.sortBy = "created"
 		}
-		m.mode = ModeNormal
+		m.mode = previousMode
 		m.sortFiles()
 		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
+		}
 		m.statusMsg = "Sorted by created date"
 		
 	case "m":
 		// Sort by modified date
 		m.sortBy = "modified"
-		m.mode = ModeNormal
+		m.mode = previousMode
 		m.sortFiles()
 		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
+		}
 		m.statusMsg = "Sorted by modified date"
 		
 	case "r":

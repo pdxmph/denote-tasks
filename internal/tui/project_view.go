@@ -41,9 +41,9 @@ func (m Model) renderProjectView() string {
 	var content string
 	switch m.projectViewTab {
 	case 0:
-		content = m.renderProjectOverview()
+		content = m.renderProjectMain() // Metadata + tasks
 	case 1:
-		content = m.renderProjectTasks()
+		content = m.renderProjectNotes() // Just the notes content
 	}
 	sections = append(sections, content)
 	
@@ -69,26 +69,26 @@ func (m Model) renderProjectView() string {
 func (m Model) renderProjectTabs() string {
 	tabs := []string{}
 	
-	// Overview tab
-	if m.projectViewTab == 0 {
-		tabs = append(tabs, activeTabStyle.Render("Overview"))
-	} else {
-		tabs = append(tabs, inactiveTabStyle.Render("Overview"))
-	}
-	
-	// Tasks tab with count
+	// Tasks tab (main tab) with count
 	taskCount := len(m.projectTasks)
 	taskLabel := fmt.Sprintf("Tasks (%d)", taskCount)
-	if m.projectViewTab == 1 {
+	if m.projectViewTab == 0 {
 		tabs = append(tabs, activeTabStyle.Render(taskLabel))
 	} else {
 		tabs = append(tabs, inactiveTabStyle.Render(taskLabel))
 	}
 	
+	// Notes tab
+	if m.projectViewTab == 1 {
+		tabs = append(tabs, activeTabStyle.Render("Notes"))
+	} else {
+		tabs = append(tabs, inactiveTabStyle.Render("Notes"))
+	}
+	
 	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 }
 
-func (m Model) renderProjectOverview() string {
+func (m Model) renderProjectMain() string {
 	project := m.viewingProject
 	meta := project.ProjectMetadata
 	
@@ -180,19 +180,9 @@ func (m Model) renderProjectOverview() string {
 	// Add horizontal rule
 	lines = append(lines, "\n" + strings.Repeat("─", 60))
 	
-	// Add body content
-	bodyContent := m.getProjectBodyContent()
-	if bodyContent != "" {
-		// Wrap long lines for readability
-		maxWidth := 80
-		if m.width > 0 && m.width < maxWidth {
-			maxWidth = m.width - 4
-		}
-		wrapped := wrapText(bodyContent, maxWidth)
-		lines = append(lines, "\n"+wrapped)
-	} else {
-		lines = append(lines, "\n"+helpStyle.Render("(no notes)"))
-	}
+	// Add tasks section
+	tasksContent := m.renderProjectTasks()
+	lines = append(lines, tasksContent)
 	
 	return strings.Join(lines, "\n")
 }
@@ -233,31 +223,57 @@ func (m Model) renderProjectTasks() string {
 func (m Model) renderProjectTaskLine(index int, task denote.Task) string {
 	// Selection indicator
 	selector := " "
-	if m.projectViewTab == 1 && index == m.projectTasksCursor {
+	if m.projectViewTab == 0 && index == m.projectTasksCursor {
 		selector = ">"
 	}
 	
-	// Status
+	// Status - use same symbols as main list
 	status := "○" // open
 	isDone := false
-	if task.TaskMetadata.Status == denote.TaskStatusDone {
-		status = "●"
+	isDelegated := false
+	isDropped := false
+	switch task.TaskMetadata.Status {
+	case denote.TaskStatusDone:
+		status = "✓"
 		isDone = true
-	} else if task.TaskMetadata.Status == denote.TaskStatusPaused {
-		status = "◐"
+	case denote.TaskStatusPaused:
+		status = "⏸"
+	case denote.TaskStatusDelegated:
+		status = "→"
+		isDelegated = true
+	case denote.TaskStatusDropped:
+		status = "⨯"
+		isDropped = true
 	}
 	
-	// Priority
-	priority := ""
+	// Priority with color
+	priority := "    " // Default empty space for alignment
 	switch task.TaskMetadata.Priority {
 	case "p1":
-		priority = "[p1]"
+		priority = priorityHighStyle.Render("[p1]")
 	case "p2":
-		priority = "[p2]"
+		priority = priorityMediumStyle.Render("[p2]")
 	case "p3":
-		priority = "[p3]"
-	default:
-		priority = "    " // Empty space for alignment
+		priority = priorityLowStyle.Render("[p3]")
+	}
+	
+	// Due date formatting with padding
+	due := "            " // 12 spaces for alignment when no date
+	isDueSoon := false
+	isOverdue := false
+	if task.TaskMetadata.DueDate != "" {
+		dateStr := fmt.Sprintf("[%s]", task.TaskMetadata.DueDate)
+		if denote.IsOverdue(task.TaskMetadata.DueDate) {
+			due = overdueStyle.Render(dateStr)
+			isOverdue = true
+		} else if denote.IsDueSoon(task.TaskMetadata.DueDate, m.config.SoonHorizon) {
+			due = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dateStr)
+			isDueSoon = true
+		} else {
+			due = dateStr
+		}
+		// Pad to consistent width
+		due = fmt.Sprintf("%-12s", due)
 	}
 	
 	title := task.TaskMetadata.Title
@@ -265,51 +281,66 @@ func (m Model) renderProjectTaskLine(index int, task denote.Task) string {
 		title = task.File.Title
 	}
 	
-	// Due date
-	due := ""
-	isOverdue := false
-	if task.TaskMetadata.DueDate != "" {
-		if denote.IsOverdue(task.TaskMetadata.DueDate) {
-			// Red for overdue
-			due = " " + overdueStyle.Render(fmt.Sprintf("[%s]", task.TaskMetadata.DueDate))
-			isOverdue = true
-		} else if denote.IsDueSoon(task.TaskMetadata.DueDate, m.config.SoonHorizon) {
-			// Orange for soon
-			due = " " + lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(fmt.Sprintf("[%s]", task.TaskMetadata.DueDate))
-		} else {
-			// Normal color for future
-			due = fmt.Sprintf(" [%s]", task.TaskMetadata.DueDate)
+	// Tags from file (excluding 'task' and 'project' tags)
+	tags := ""
+	filteredTags := []string{}
+	for _, tag := range task.File.Tags {
+		if tag != "task" && tag != "project" {
+			filteredTags = append(filteredTags, tag)
 		}
 	}
-	
-	// Build the line
-	line := fmt.Sprintf("%s %s %s %-40s%s", 
-		selector,
-		status, 
-		priority, 
-		truncate(title, 40), 
-		due)
-	
-	// Apply styling
-	if m.projectViewTab == 1 && index == m.projectTasksCursor {
-		return selectedStyle.Render(line)
-	} else if isDone {
-		return doneStyle.Render(line)
-	} else if isOverdue {
-		return overdueStyle.Render(line)
+	if len(filteredTags) > 0 {
+		tags = strings.Join(filteredTags, " ")
 	}
 	
-	// Apply priority coloring
-	switch task.TaskMetadata.Priority {
-	case "p1":
-		return priorityHighStyle.Render(line)
-	case "p2":
-		return priorityMediumStyle.Render(line)
-	case "p3":
-		return priorityLowStyle.Render(line)
+	// Area (if not filtering by area)
+	area := ""
+	if task.TaskMetadata.Area != "" && m.areaFilter == "" {
+		area = task.TaskMetadata.Area
+	}
+	
+	// Build the line with proper formatting
+	// Format: selector status priority due title tags area
+	line := fmt.Sprintf("%s %s %s %s  %-50s %-25s %-10s", 
+		selector,
+		status,
+		priority,
+		due,
+		truncate(title, 50),
+		truncate(tags, 25),
+		truncate(area, 10))
+	
+	// Apply styling based on state
+	if m.projectViewTab == 0 && index == m.projectTasksCursor {
+		return selectedStyle.Render(line)
+	} else if isDone || isDelegated || isDropped {
+		return doneStyle.Render(line)
+	} else if isOverdue && !isDueSoon {
+		// Only apply full line overdue style if not also "due soon"
+		return line
 	}
 	
 	return line
+}
+
+func (m Model) renderProjectNotes() string {
+	var lines []string
+	
+	// Add body content
+	bodyContent := m.getProjectBodyContent()
+	if bodyContent != "" {
+		// Wrap long lines for readability
+		maxWidth := 80
+		if m.width > 0 && m.width < maxWidth {
+			maxWidth = m.width - 4
+		}
+		wrapped := wrapText(bodyContent, maxWidth)
+		lines = append(lines, "\n"+wrapped)
+	} else {
+		lines = append(lines, "\n"+helpStyle.Render("(no notes)"))
+	}
+	
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) getProjectBodyContent() string {
@@ -342,10 +373,12 @@ func (m Model) getProjectViewHints() []string {
 		"tab:switch tabs",
 		"q/esc:back",
 		"e:edit file",
+		"n:new task",
 	}
 	
 	if m.projectViewTab == 0 {
-		// Overview tab hints
+		// Main tab (metadata + tasks) hints
+		// Metadata editing hints
 		hints = append(hints,
 			"t:title",
 			"p:priority",
@@ -353,20 +386,21 @@ func (m Model) getProjectViewHints() []string {
 			"d:due date",
 			"a:area",
 			"g:tags",
-			"x:delete",
 		)
-	} else {
-		// Tasks tab hints
+		// Task list hints (if there are tasks)
 		if len(m.projectTasks) > 0 {
 			hints = append(hints,
 				"j/k:nav",
 				"enter:view task",
-				"1/2/3:priority",
-				"s:state",
-				"x:delete",
+				"1/2/3:task priority",
+				"S:sort",
+				"x:delete task",
 			)
 		}
+		// Project deletion
+		hints = append(hints, "X:delete project")
 	}
+	// Tab 1 (Notes) has no special operations
 	
 	return hints
 }
