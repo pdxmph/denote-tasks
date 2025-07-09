@@ -189,7 +189,18 @@ func taskListCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// Filter to tasks only
+		// First pass: collect all projects for name lookup
+		projectNames := make(map[string]string) // ID -> Title
+		for _, file := range files {
+			if file.IsProject() {
+				p, err := denote.ParseProjectFile(file.Path)
+				if err == nil {
+					projectNames[file.ID] = p.ProjectMetadata.Title
+				}
+			}
+		}
+
+		// Second pass: filter to tasks only
 		var tasks []denote.Task
 		for _, file := range files {
 			if !file.IsTask() {
@@ -264,7 +275,7 @@ func taskListCommand(cfg *config.Config) *Command {
 			fmt.Printf("Tasks (%d):\n\n", len(tasks))
 		}
 
-		// Display tasks
+		// Display tasks with clean, TUI-like formatting
 		for _, t := range tasks {
 			// Status icon
 			status := "○"
@@ -276,51 +287,74 @@ func taskListCommand(cfg *config.Config) *Command {
 			case denote.TaskStatusDelegated:
 				status = "→"
 			case denote.TaskStatusDropped:
-				status = "✗"
+				status = "⨯"
 			}
 
-			// Format line with index_id
-			line := fmt.Sprintf("%3d %s ", t.TaskMetadata.IndexID, status)
-
-			// Priority
+			// Priority with padding
+			priority := "    " // 4 spaces for alignment
 			if t.TaskMetadata.Priority != "" {
-				pStr := fmt.Sprintf("[%s] ", t.TaskMetadata.Priority)
+				pStr := fmt.Sprintf("[%s]", t.TaskMetadata.Priority)
 				switch t.TaskMetadata.Priority {
 				case "p1":
-					line += priorityHighColor.Sprint(pStr)
+					priority = priorityHighColor.Sprint(pStr)
 				case "p2":
-					line += priorityMedColor.Sprint(pStr)
+					priority = priorityMedColor.Sprint(pStr)
 				default:
-					line += pStr
+					priority = pStr
 				}
 			}
 
-			// Title
+			// Due date with fixed width
+			due := "            " // 12 spaces for alignment
+			if t.TaskMetadata.DueDate != "" {
+				dueStr := fmt.Sprintf("[%s]", t.TaskMetadata.DueDate)
+				if denote.IsOverdue(t.TaskMetadata.DueDate) {
+					due = overdueColor.Sprint(dueStr)
+				} else {
+					due = dueStr
+				}
+			}
+
+			// Title - truncate to 50 chars
 			title := t.TaskMetadata.Title
 			if title == "" {
 				title = t.File.Title
 			}
-			line += title
+			if len(title) > 50 {
+				title = title[:47] + "..."
+			}
 
-			// Due date
-			if t.TaskMetadata.DueDate != "" {
-				dueStr := fmt.Sprintf(" [%s]", t.TaskMetadata.DueDate)
-				if denote.IsOverdue(t.TaskMetadata.DueDate) {
-					line += overdueColor.Sprint(dueStr)
-				} else {
-					line += dueStr
+			// Area - truncate to 10 chars
+			area := ""
+			if t.TaskMetadata.Area != "" {
+				area = t.TaskMetadata.Area
+				if len(area) > 10 {
+					area = area[:7] + "..."
 				}
 			}
 
-			// Area
-			if t.TaskMetadata.Area != "" {
-				line += fmt.Sprintf(" (%s)", t.TaskMetadata.Area)
+			// Project name (look up actual name)
+			projectName := ""
+			if t.TaskMetadata.ProjectID != "" {
+				if name, ok := projectNames[t.TaskMetadata.ProjectID]; ok && name != "" {
+					projectName = "→ " + name
+				} else {
+					// Fallback to ID if name not found
+					projectName = "→ " + t.TaskMetadata.ProjectID
+				}
 			}
 
-			// Project
-			if t.TaskMetadata.ProjectID != "" {
-				line += fmt.Sprintf(" → %s", t.TaskMetadata.ProjectID)
-			}
+			// Build the line with fixed-width columns
+			// Format: ID Status Priority Due Title(50) Area(10) Project
+			line := fmt.Sprintf("%3d %s %s %s  %-50s %-10s %s",
+				t.TaskMetadata.IndexID,
+				status,
+				priority,
+				due,
+				title,
+				area,
+				projectName,
+			)
 
 			// Apply line coloring for done tasks
 			if t.TaskMetadata.Status == denote.TaskStatusDone {

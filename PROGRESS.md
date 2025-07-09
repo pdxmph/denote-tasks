@@ -5,6 +5,24 @@
 Any feature marked as "✅ Completed" means it has been TESTED AND VERIFIED by a human.
 Features that compile but haven't been tested must be marked as "IMPLEMENTED BUT NOT TESTED".
 
+## Session: 2025-01-14 (Afternoon) - Project View Enhancements
+
+### Summary of Completed Work
+
+Implemented comprehensive enhancements to the project view interface:
+
+1. **Task-focused project view** - Reorganized tabs to prioritize tasks over notes
+2. **Context-aware task creation** - Create tasks directly from project view with automatic assignment
+3. **Full metadata display** - Project tasks now show all metadata like the main list
+4. **Consistent sorting** - Unified sort key ('S') across all modes, fixed return navigation
+5. **Improved UX** - Better deletion keys (x/X), removed unnecessary "due today" divider
+
+All features are implemented and ready for testing. The project view now provides a complete task management interface within the context of a specific project.
+
+### CLI List Improvements
+
+Also cleaned up the CLI `task list` output to match the TUI's clean, columnar format while keeping the index ID for CLI operations.
+
 ## Session: 2025-01-14 - Extended Task/Project Management Features
 
 ### Completed Features (Tested and Working)
@@ -147,7 +165,19 @@ Created tabbed project view interface:
    - Enhanced renderProjectTaskLine with full metadata
    - Added sort key handling to project view
    
-4. **Enhanced Project Display in Task List**
+4. **Cleaned up CLI list output** (2025-01-14)
+   - Mirrored TUI's clean, columnar format
+   - Fixed-width columns for better alignment
+   - Kept index ID for CLI operations (3-digit format)
+   - Added proper spacing between fields
+   - Title truncated to 50 chars
+   - Area truncated to 10 chars
+   - Consistent status symbols (including ⨯ for dropped)
+   - Project names now show actual titles (not just IDs)
+   
+   Format: `ID Status Priority [Due Date]  Title(50) Area(10) → Project Name`
+
+5. **Enhanced Project Display in Task List**
    - Projects now show priority [p1/p2/p3] like tasks
    - Projects show due dates with overdue highlighting
    - Priority coloring applied to projects
