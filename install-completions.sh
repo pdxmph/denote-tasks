@@ -1,21 +1,40 @@
-#!/bin/bash
+#!/bin/sh
 # Install shell completions for denote-tasks
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPLETIONS_DIR="$SCRIPT_DIR/completions"
 
 # Detect shell if not specified
 if [ -z "$1" ]; then
-    if [ -n "$BASH_VERSION" ]; then
-        SHELL_TYPE="bash"
-    elif [ -n "$ZSH_VERSION" ]; then
-        SHELL_TYPE="zsh"
-    else
-        echo "Could not detect shell type. Please specify 'bash' or 'zsh' as argument."
-        exit 1
-    fi
+    # Try to detect from parent shell
+    PARENT_SHELL=$(ps -p $PPID -o comm= 2>/dev/null | sed 's/^-//')
+    case "$PARENT_SHELL" in
+        *bash*)
+            SHELL_TYPE="bash"
+            ;;
+        *zsh*)
+            SHELL_TYPE="zsh"
+            ;;
+        *)
+            # Fallback to $SHELL variable
+            case "$SHELL" in
+                */bash)
+                    SHELL_TYPE="bash"
+                    ;;
+                */zsh)
+                    SHELL_TYPE="zsh"
+                    ;;
+                *)
+                    echo "Could not detect shell type. Please specify 'bash' or 'zsh' as argument."
+                    echo "Usage: $0 [bash|zsh]"
+                    exit 1
+                    ;;
+            esac
+            ;;
+    esac
+    echo "Detected shell: $SHELL_TYPE"
 else
     SHELL_TYPE="$1"
 fi
