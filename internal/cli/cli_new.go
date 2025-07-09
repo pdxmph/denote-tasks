@@ -64,8 +64,9 @@ Global Options:
 	// Add subcommands
 	root.Subcommands = []*Command{
 		TaskCommand(cfg),
-		// TODO: ProjectCommand(cfg),
+		ProjectCommand(cfg),
 		// TODO: NoteCommand(cfg),
+		CompletionCommand(cfg),
 	}
 
 	// Add legacy command aliases for compatibility

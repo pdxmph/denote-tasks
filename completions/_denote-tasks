@@ -1,0 +1,237 @@
+#compdef denote-tasks
+
+# Zsh completion for denote-tasks
+
+# Helper function to get task IDs
+_denote_tasks_get_task_ids() {
+    local -a ids
+    ids=(${(f)"$(denote-tasks completion task-ids 2>/dev/null)"})
+    echo "$ids"
+}
+
+# Helper function to get project IDs
+_denote_tasks_get_project_ids() {
+    local -a projects
+    projects=(${(f)"$(denote-tasks completion project-ids 2>/dev/null)"})
+    echo "$projects"
+}
+
+# Helper function to get areas
+_denote_tasks_get_areas() {
+    local -a areas
+    areas=(${(f)"$(denote-tasks completion areas 2>/dev/null)"})
+    echo "$areas"
+}
+
+# Helper function to get tags
+_denote_tasks_get_tags() {
+    local -a tags
+    tags=(${(f)"$(denote-tasks completion tags 2>/dev/null)"})
+    echo "$tags"
+}
+
+_denote-tasks() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    # Global options available everywhere
+    local -a global_options=(
+        '--config[Use specific config file]:config file:_files'
+        '--dir[Override notes directory]:directory:_directories'
+        '--json[Output in JSON format]'
+        '--no-color[Disable color output]'
+        '(-q --quiet)'{-q,--quiet}'[Minimal output]'
+        '--area[Filter by area]:area:->areas'
+        '(-t --tui)'{-t,--tui}'[Launch TUI interface]'
+        '--help[Show help]'
+        '--version[Show version]'
+    )
+
+    _arguments -C \
+        '1: :->command' \
+        '2: :->subcommand' \
+        '*:: :->args' \
+        $global_options
+
+    case $state in
+        command)
+            local -a commands=(
+                'task:Manage tasks'
+                'project:Manage projects'
+                'note:Manage notes'
+                'add:Create new task (legacy)'
+                'list:List tasks (legacy)'
+                'done:Mark task as done (legacy)'
+            )
+            _describe -t commands 'command' commands
+            ;;
+
+        subcommand)
+            case $words[1] in
+                task)
+                    local -a task_commands=(
+                        'new:Create a new task'
+                        'list:List tasks'
+                        'update:Update task metadata'
+                        'done:Mark tasks as done'
+                        'edit:Edit task file'
+                        'delete:Delete tasks'
+                        'log:Add timestamped log entry'
+                    )
+                    _describe -t task-commands 'task command' task_commands
+                    ;;
+                project)
+                    local -a project_commands=(
+                        'new:Create a new project'
+                        'list:List projects'
+                        'update:Update project metadata'
+                        'tasks:Show tasks for a project'
+                    )
+                    _describe -t project-commands 'project command' project_commands
+                    ;;
+                note)
+                    local -a note_commands=(
+                        'new:Create a new note'
+                        'list:List notes'
+                        'edit:Edit a note'
+                        'rename:Rename note based on frontmatter'
+                    )
+                    _describe -t note-commands 'note command' note_commands
+                    ;;
+            esac
+            ;;
+
+        args)
+            case $words[1] in
+                task)
+                    case $words[2] in
+                        new)
+                            _arguments \
+                                '(-p --priority)'{-p,--priority}'[Set priority]:priority:(p1 p2 p3)' \
+                                '(-due --due)'{-due,--due}'[Set due date]:due date:(today tomorrow monday tuesday wednesday thursday friday saturday sunday)' \
+                                '(-area --area)'{-area,--area}'[Set area]:area:->areas' \
+                                '(-project --project)'{-project,--project}'[Assign to project]:project:->projects' \
+                                '(-estimate --estimate)'{-estimate,--estimate}'[Set time estimate]:estimate:(1 2 3 5 8 13 21)' \
+                                '(-tags --tags)'{-tags,--tags}'[Set tags]:tags:->tags' \
+                                '*:title:'
+                            ;;
+                        
+                        list)
+                            _arguments \
+                                '(-a -all)'{-a,-all}'[Show all tasks]' \
+                                '(-status --status)'{-status,--status}'[Filter by status]:status:(open done paused delegated dropped)' \
+                                '(-area --area)'{-area,--area}'[Filter by area]:area:->areas' \
+                                '(-p --priority)'{-p,--priority}'[Filter by priority]:priority:(p1 p2 p3)' \
+                                '(-project --project)'{-project,--project}'[Filter by project]:project:->projects' \
+                                '(-overdue --overdue)'{-overdue,--overdue}'[Show only overdue tasks]' \
+                                '(-soon --soon)'{-soon,--soon}'[Show tasks due soon]' \
+                                '(-s -sort --sort)'{-s,-sort,--sort}'[Sort by]:sort:(modified priority due created)' \
+                                '(-r -reverse --reverse)'{-r,-reverse,--reverse}'[Reverse sort order]'
+                            ;;
+                        
+                        update)
+                            _arguments \
+                                '1:task IDs:->task_ids' \
+                                '(-status --status)'{-status,--status}'[Update status]:status:(open done paused delegated dropped)' \
+                                '(-p --priority)'{-p,--priority}'[Update priority]:priority:(p1 p2 p3)' \
+                                '(-due --due)'{-due,--due}'[Update due date]:due date:' \
+                                '(-area --area)'{-area,--area}'[Update area]:area:->areas' \
+                                '(-project --project)'{-project,--project}'[Update project]:project:->projects' \
+                                '(-tags --tags)'{-tags,--tags}'[Update tags]:tags:'
+                            ;;
+                        
+                        done|edit|delete)
+                            _arguments '1:task IDs:->task_ids'
+                            ;;
+                        
+                        log)
+                            _arguments \
+                                '1:task ID:->task_ids' \
+                                '2:log message:'
+                            ;;
+                    esac
+                    ;;
+                    
+                project)
+                    case $words[2] in
+                        new)
+                            _arguments \
+                                '(-p --priority)'{-p,--priority}'[Set priority]:priority:(p1 p2 p3)' \
+                                '(-area --area)'{-area,--area}'[Set area]:area:->areas' \
+                                '(-status --status)'{-status,--status}'[Set status]:status:(active paused completed cancelled)' \
+                                '(-due --due)'{-due,--due}'[Set due date]:due date:' \
+                                '(-tags --tags)'{-tags,--tags}'[Set tags]:tags:->tags' \
+                                '*:title:'
+                            ;;
+                        
+                        list)
+                            _arguments \
+                                '(-all)'-all'[Show all projects]' \
+                                '(-sort --sort)'{-sort,--sort}'[Sort by]:sort:(modified priority due created name area)' \
+                                '(-reverse --reverse)'{-reverse,--reverse}'[Reverse sort order]'
+                            ;;
+                    esac
+                    ;;
+                    
+                note)
+                    case $words[2] in
+                        new)
+                            _arguments \
+                                '(-tags --tags)'{-tags,--tags}'[Set tags]:tags:->tags' \
+                                '*:title:'
+                            ;;
+                        
+                        list)
+                            _arguments \
+                                '(-tag --tag)'{-tag,--tag}'[Filter by tag]:tag:'
+                            ;;
+                    esac
+                    ;;
+                    
+                # Legacy commands
+                add)
+                    # Same as task new
+                    _arguments \
+                        '(-p --priority)'{-p,--priority}'[Set priority]:priority:(p1 p2 p3)' \
+                        '(-due --due)'{-due,--due}'[Set due date]:due date:' \
+                        '(-area --area)'{-area,--area}'[Set area]:area:->areas' \
+                        '(-project --project)'{-project,--project}'[Assign to project]:project:->projects' \
+                        '*:title:'
+                    ;;
+                    
+                done)
+                    _arguments '1:task IDs:->task_ids'
+                    ;;
+            esac
+            ;;
+    esac
+
+    # Handle dynamic completions
+    case $state in
+        task_ids)
+            local -a task_ids
+            task_ids=($(_denote_tasks_get_task_ids))
+            _describe -t task-ids 'task ID' task_ids
+            ;;
+            
+        areas)
+            local -a areas
+            areas=($(_denote_tasks_get_areas))
+            _describe -t areas 'area' areas
+            ;;
+            
+        projects)
+            local -a project_info
+            project_info=($(_denote_tasks_get_project_ids))
+            _describe -t projects 'project' project_info
+            ;;
+            
+        tags)
+            local -a tags
+            tags=($(_denote_tasks_get_tags))
+            _describe -t tags 'tag' tags
+            ;;
+    esac
+}
+
+_denote-tasks "$@"
