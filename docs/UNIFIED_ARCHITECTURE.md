@@ -1,20 +1,20 @@
-# Unified Architecture: notes-cli + notes-tui
+# Unified Architecture: denote-tasks
 
-Version: 1.0.0  
-Date: 2025-01-13
+Version: 2.0.0  
+Date: 2025-01-14
 
 ## Vision
 
-Merge notes-cli and notes-tui into a single tool with two interface modes, sharing the same underlying data layer and adhering to the Denote Task Specification v2.0.0.
+A focused task management tool with CLI and TUI interfaces, sharing the same underlying data layer and adhering to the Denote Task Specification v2.0.0. This tool is specifically designed for task and project management, not general note-taking.
 
 ## Core Principle
 
-"One tool, two interfaces, same data" - The CLI and TUI are simply different views of the same Denote-based task and project system.
+"Focus on tasks, not notes" - The CLI and TUI provide different interfaces to a task-focused workflow using Denote's file naming convention for consistency and compatibility.
 
 ## Architecture Overview
 
 ```
-notes (unified tool)
+denote-tasks
 ├── cmd/
 │   ├── notes/
 │   │   ├── main.go           # Entry point, mode detection
@@ -25,7 +25,7 @@ notes (unified tool)
 │
 ├── internal/
 │   ├── denote/               # Core Denote operations
-│   │   ├── types.go          # Data structures (Task, Project, Note)
+│   │   ├── types.go          # Data structures (Task, Project)
 │   │   ├── parser.go         # File parsing
 │   │   ├── scanner.go        # Directory scanning
 │   │   ├── id_counter.go     # Sequential ID management

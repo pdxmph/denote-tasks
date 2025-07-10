@@ -4,28 +4,30 @@ This file contains important context about the denote-tasks project to help AI a
 
 ## Project Overview
 
-**denote-tasks** is a task management system built on the Denote file naming convention. It extends Denote with task-specific metadata while maintaining 100% compatibility with Emacs Denote.
+**denote-tasks** is a focused task management tool built on the Denote file naming convention. It uses Denote format for consistent file identification and backward compatibility while providing powerful task and project management features.
 
-### Current Status (2025-01-13)
+### Current Status (2025-01-14)
 
-- Basic CLI working (add, list, done, show commands)
-- TUI implementation started but NOT YET TESTED
+- Basic CLI working (task and project commands)
+- TUI implementation for tasks (needs testing)
 - Following Denote Task Spec v2.0.0
-- Issue #1 (basic TUI) partially implemented
+- Refactoring to task-only focus in progress
 
 ## Important Documents
 
 **ALWAYS READ THESE FIRST:**
+- `REFACTORING_PLAN.md` - Current refactoring to task-only focus
 - `PROJECT_CHARTER.md` - Vision, principles, and roadmap
 - `docs/DENOTE_TASK_SPEC.md` - File format specification (v2.0.0)
 - `PROGRESS.md` - Current session status
 
 ## Architecture Principles
 
-1. **Denote Purity** - Only Denote files, no other formats
-2. **Single Directory** - Notes and tasks coexist
-3. **Two Interfaces** - CLI and TUI share core logic
+1. **Denote Format** - Use Denote naming for consistent IDs
+2. **Task Focus** - Only task and project files, no general notes
+3. **Two Interfaces** - CLI and TUI for task management
 4. **No External Dependencies** - No TaskWarrior, etc.
+5. **Simplicity** - Focused functionality over feature creep
 
 ## Testing Guidelines
 
@@ -58,21 +60,22 @@ When implementing TUI features, provide:
 
 ### Completed
 - ✅ Core denote package (parser, scanner, types)
-- ✅ Basic CLI commands
+- ✅ Basic CLI task commands
 - ✅ Configuration system
 - ✅ Task creation with frontmatter
+- ✅ Project file support
 
 ### In Progress
-- 🚧 TUI for browsing notes (Issue #1)
-  - Model and views created
+- 🚧 TUI for task management
+  - Task and project views implemented
   - Needs manual testing
-  - See PROGRESS.md for details
+  - Being refactored for task-only focus
 
-### Not Started
-- ❌ Task mode in TUI
-- ❌ Project management
-- ❌ Advanced filtering
-- ❌ External editor integration
+### Refactoring Tasks
+- 🔄 Remove notes functionality from CLI
+- 🔄 Remove notes views from TUI
+- 🔄 Simplify data models to task-only
+- 🔄 Update documentation for task focus
 
 ## Code Organization
 
@@ -80,30 +83,32 @@ When implementing TUI features, provide:
 denote-tasks/
 ├── cmd/denote-tasks/     # Main entry point
 ├── internal/
-│   ├── cli/              # CLI implementation
+│   ├── cli/              # CLI implementation (task/project commands)
 │   ├── config/           # Configuration
-│   ├── core/             # Business logic (filters)
-│   ├── denote/           # Denote file operations
-│   ├── task/             # Task-specific logic
-│   └── tui/              # TUI implementation (NEW)
-└── docs/                 # Specifications
+│   ├── core/             # Business logic (task filters)
+│   ├── denote/           # Denote file operations (keep for IDs)
+│   ├── task/             # Task and project logic
+│   └── tui/              # TUI implementation (task-focused)
+└── docs/                 # Specifications and plans
 ```
 
 ## Development Workflow
 
-1. **Read the spec first** - docs/DENOTE_TASK_SPEC.md
-2. **Check PROJECT_CHARTER.md** for principles
-3. **Update PROGRESS.md** during work
-4. **Use test configs** for testing
-5. **Document manual test needs**
+1. **Read REFACTORING_PLAN.md** for current focus
+2. **Check docs/DENOTE_TASK_SPEC.md** for file format
+3. **Review PROJECT_CHARTER.md** for principles
+4. **Update PROGRESS.md** during work
+5. **Use test configs** for testing
+6. **Document manual test needs**
 
 ## Key Differences from Legacy notes-tui
 
 This is NOT a fork of notes-tui. Key differences:
-- Denote-only (no plain markdown support)
+- Task-only focus (no general notes support)
+- Denote format for consistent IDs
 - Spec v2.0.0 compliant (uses Denote IDs for projects)
-- Simpler architecture
-- Unified CLI/TUI codebase
+- Simpler, focused architecture
+- Unified CLI/TUI codebase for tasks
 
 ## Testing the TUI
 
@@ -114,24 +119,35 @@ go build ./cmd/denote-tasks
 # Test with provided config
 ./denote-tasks --config test-config.toml --tui
 
-# Create your own test environment
-mkdir ~/denote-test
-# Add some .md files with Denote naming
+# Create test task environment
+mkdir ~/denote-tasks-test
+# Add task files: *__task*.md
+# Add project files: *__project*.md
 # Update test-config.toml
+
+# Test task operations
+./denote-tasks task list
+./denote-tasks task new "Test task" --priority p1
+./denote-tasks project list
 ```
 
 ## Common Pitfalls to Avoid
 
 1. **Don't modify user configs** - Always use test configs
 2. **Don't assume TUI works** - It needs terminal testing
-3. **Don't add non-Denote features** - Stay pure to the spec
-4. **Don't forget PROGRESS.md** - Update it regularly
-5. **Don't add caching** - We're working with small text files. Always question any caching you find and ask if we can remove it. Caching causes staleness bugs without meaningful performance benefits.
+3. **Don't add non-task features** - This is a task management tool only
+4. **Don't add general notes support** - Task and project files only
+5. **Don't forget PROGRESS.md** - Update it regularly
+6. **Don't add caching** - We're working with small text files. Always question any caching you find and ask if we can remove it. Caching causes staleness bugs without meaningful performance benefits.
+7. **Don't stray from focus** - If it's not about tasks/projects, it doesn't belong
 
 ## Questions/Decisions
 
 - **Why Bubble Tea?** - Modern, well-maintained, good docs
 - **Why not fork notes-tui?** - Too much legacy, want clean start
+- **Why task-only?** - Focus and simplicity beat feature creep
+- **Why keep Denote format?** - Consistent IDs, backward compatibility
+- **Why remove notes?** - Clear purpose, simpler codebase
 - **Why unified architecture?** - Easier maintenance, consistent behavior
 
 ## Performance Philosophy
@@ -142,6 +158,16 @@ We prioritize simplicity and correctness over premature optimization:
 - File I/O is negligible compared to user interaction time
 - Eliminating cache eliminates an entire class of staleness bugs
 
+## Task Management Focus
+
+This project is specifically designed for task management:
+- **Tasks**: Files with `__task` tag and task metadata
+- **Projects**: Files with `__project` tag and project metadata
+- **No General Notes**: We don't support browsing or managing general markdown files
+- **Clear Purpose**: If you need notes management, use a different tool
+
+The Denote format is used purely for its excellent file naming convention and ID system, not because we're trying to be a general Denote file manager.
+
 ---
 
-Last updated: 2025-01-14 by Claude (Session on task logging and cache removal)
+Last updated: 2025-01-14 by Claude (Session on refactoring to task-only focus)

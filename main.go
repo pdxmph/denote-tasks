@@ -27,8 +27,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Use new CLI structure
-	if err := cli.RunNew(cfg, os.Args[1:]); err != nil {
+	// Run CLI with task-focused commands
+	if err := cli.Run(cfg, os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

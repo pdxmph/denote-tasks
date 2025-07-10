@@ -43,6 +43,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleLogEntryKeys(msg)
 	case ModeProjectSelect:
 		return m.handleProjectSelectKeys(msg)
+	case ModeCreateProject:
+		return m.handleCreateProjectKeys(msg)
+	case ModeCreateProjectTags:
+		return m.handleCreateProjectTagsKeys(msg)
 	default:
 		return m.handleNormalKeys(msg)
 	}
@@ -52,102 +56,8 @@ func (m Model) handleNormalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Clear status message on any key press
 	m.statusMsg = ""
 	
-	// Check if we're in task mode and need different key handling
-	if m.viewMode == ViewModeTasks {
-		return m.handleTaskModeKeys(msg)
-	}
-	
-	switch msg.String() {
-	case "q", "ctrl+c":
-		return m, tea.Quit
-		
-	case "j", "down":
-		if m.cursor < len(m.filtered)-1 {
-			m.cursor++
-		}
-		
-	case "k", "up":
-		if m.cursor > 0 {
-			m.cursor--
-		}
-		
-	case "g":
-		if m.lastKey == "g" {
-			m.cursor = 0
-			m.lastKey = ""
-		} else {
-			m.lastKey = "g"
-		}
-		
-	case "G":
-		if len(m.filtered) > 0 {
-			m.cursor = len(m.filtered) - 1
-		}
-		
-	case "/":
-		m.mode = ModeSearch
-		m.searchInput = m.searchQuery
-		
-	case "enter", "o":
-		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
-			m.mode = ModePreview
-			m.previewFile = &m.filtered[m.cursor]
-			m.previewScroll = 0
-		}
-		
-	case "e":
-		if m.config.Editor != "" && m.cursor < len(m.filtered) {
-			file := m.filtered[m.cursor]
-			return m, m.editFile(file.Path)
-		} else {
-			m.statusMsg = "No editor configured"
-		}
-		
-	case "?":
-		m.mode = ModeHelp
-		
-	case "n":
-		m.mode = ModeCreate
-		m.createTitle = ""
-		m.createTags = ""
-		
-	case "S":
-		// Enter sort mode (uppercase for consistency across all modes)
-		m.mode = ModeSort
-		
-	case "r":
-		// Toggle reverse sort
-		m.reverseSort = !m.reverseSort
-		m.sortFiles()
-		
-	case "t":
-		// Toggle to Task mode
-		m.viewMode = ViewModeTasks
-		m.statusMsg = "Task Mode"
-		m.cursor = 0
-		// Use configured defaults for tasks
-		m.sortBy = m.config.Tasks.SortBy
-		if m.sortBy == "" {
-			m.sortBy = "due"
-		}
-		m.reverseSort = m.config.Tasks.SortOrder == "reverse"
-		// Default to "active" filter (open + delegated)
-		m.stateFilter = "active"
-		m.applyFilters()
-		m.sortFiles()
-		m.loadVisibleMetadata()
-		
-	case "x", "delete":
-		// Delete note confirmation
-		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
-			m.mode = ModeConfirmDelete
-		}
-		
-	default:
-		m.lastKey = ""
-	}
-	
-	return m, nil
+	// Always use task mode key handling now
+	return m.handleTaskModeKeys(msg)
 }
 
 func (m Model) handleHelpKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -244,31 +154,6 @@ func (m Model) handlePreviewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// For notes, use simple title input
-	if m.viewMode != ViewModeTasks {
-		switch msg.String() {
-		case "esc", "ctrl+c":
-			m.mode = ModeNormal
-			m.createTitle = ""
-			
-		case "enter":
-			if m.createTitle != "" {
-				m.mode = ModeCreateTags
-			}
-			
-		case "backspace":
-			if len(m.createTitle) > 0 {
-				m.createTitle = m.createTitle[:len(m.createTitle)-1]
-			}
-			
-		default:
-			if len(msg.String()) == 1 {
-				m.createTitle += msg.String()
-			}
-		}
-		return m, nil
-	}
-	
 	// Full task creation form
 	switch msg.String() {
 	case "esc", "ctrl+c":
@@ -376,6 +261,56 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleCreateTagsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		m.mode = ModeNormal
+		m.createTitle = ""
+		m.createTags = ""
+		
+	case "enter":
+		m.mode = ModeNormal
+		return m, m.create()
+		
+	case "backspace":
+		if len(m.createTags) > 0 {
+			m.createTags = m.createTags[:len(m.createTags)-1]
+		}
+		
+	default:
+		if len(msg.String()) == 1 {
+			m.createTags += msg.String()
+		}
+	}
+	
+	return m, nil
+}
+
+func (m Model) handleCreateProjectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		m.mode = ModeNormal
+		m.createTitle = ""
+		
+	case "enter":
+		if m.createTitle != "" {
+			m.mode = ModeCreateProjectTags
+		}
+		
+	case "backspace":
+		if len(m.createTitle) > 0 {
+			m.createTitle = m.createTitle[:len(m.createTitle)-1]
+		}
+		
+	default:
+		if len(msg.String()) == 1 {
+			m.createTitle += msg.String()
+		}
+	}
+	
+	return m, nil
+}
+
+func (m Model) handleCreateProjectTagsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "ctrl+c":
 		m.mode = ModeNormal
@@ -525,10 +460,18 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 	case "c":
-		// Create new task
-		m.mode = ModeCreate
-		m.createTitle = ""
-		m.createTags = ""
+		// Create new task or project depending on current view
+		if m.projectFilter {
+			// In project list, create a project
+			m.mode = ModeCreateProject
+			m.createTitle = ""
+			m.createTags = ""
+		} else {
+			// In task list, create a task
+			m.mode = ModeCreate
+			m.createTitle = ""
+			m.createTags = ""
+		}
 		
 	case "f":
 		// Filter menu
@@ -594,22 +537,22 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loadVisibleMetadata()
 		
 	case "t":
-		// Toggle back to Notes mode
-		m.viewMode = ViewModeNotes
-		m.statusMsg = "Notes Mode"
-		m.cursor = 0
-		// Use configured defaults for notes
-		m.sortBy = m.config.Notes.SortBy
-		if m.sortBy == "" {
-			m.sortBy = "created"
+		// Go to task list (opposite of 'p' for projects)
+		if m.projectFilter {
+			// Currently in project list, switch to task list
+			m.projectFilter = false
+			m.statusMsg = "Showing tasks"
+			// Restore state filter for tasks
+			if m.stateFilter == "" {
+				m.stateFilter = "active"
+			}
+			m.applyFilters()
+			m.sortFiles()
+			m.loadVisibleMetadata()
+		} else {
+			// Already in task list
+			m.statusMsg = "Already showing tasks"
 		}
-		m.reverseSort = m.config.Notes.SortOrder == "reverse"
-		// Clear task-specific filters when leaving task mode
-		m.stateFilter = ""
-		m.projectFilter = false
-		m.applyFilters()
-		m.sortFiles()
-		m.loadVisibleMetadata()
 		
 	default:
 		m.lastKey = ""
@@ -663,56 +606,48 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = previousMode
 		
 	case "d":
-		if m.viewMode == ViewModeTasks {
-			// Sort by due date (tasks only)
-			m.sortBy = "due"
-			m.mode = previousMode
-			m.sortFiles()
-			m.loadVisibleMetadata()
-			if m.viewingProject != nil {
-				m.loadProjectTasks()
-			}
-			m.statusMsg = "Sorted by due date"
+		// Sort by due date
+		m.sortBy = "due"
+		m.mode = previousMode
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
 		}
+		m.statusMsg = "Sorted by due date"
 		
 	case "p":
-		if m.viewMode == ViewModeTasks {
-			// Sort by priority (tasks only)
-			m.sortBy = "priority"
-			m.mode = previousMode
-			m.sortFiles()
-			m.loadVisibleMetadata()
-			if m.viewingProject != nil {
-				m.loadProjectTasks()
-			}
-			m.statusMsg = "Sorted by priority"
+		// Sort by priority
+		m.sortBy = "priority"
+		m.mode = previousMode
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
 		}
+		m.statusMsg = "Sorted by priority"
 		
 	case "j":
-		if m.viewMode == ViewModeTasks {
-			// Sort by project (tasks only)
-			m.sortBy = "project"
-			m.mode = previousMode
-			m.sortFiles()
-			m.loadVisibleMetadata()
-			if m.viewingProject != nil {
-				m.loadProjectTasks()
-			}
-			m.statusMsg = "Sorted by project"
+		// Sort by project
+		m.sortBy = "project"
+		m.mode = previousMode
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
 		}
+		m.statusMsg = "Sorted by project"
 		
 	case "e":
-		if m.viewMode == ViewModeTasks {
-			// Sort by estimate (tasks only)
-			m.sortBy = "estimate"
-			m.mode = previousMode
-			m.sortFiles()
-			m.loadVisibleMetadata()
-			if m.viewingProject != nil {
-				m.loadProjectTasks()
-			}
-			m.statusMsg = "Sorted by estimate"
+		// Sort by estimate
+		m.sortBy = "estimate"
+		m.mode = previousMode
+		m.sortFiles()
+		m.loadVisibleMetadata()
+		if m.viewingProject != nil {
+			m.loadProjectTasks()
 		}
+		m.statusMsg = "Sorted by estimate"
 		
 	case "t":
 		// Sort by title (both modes)
@@ -727,11 +662,7 @@ func (m Model) handleSortKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		
 	case "c":
 		// Sort by created date
-		if m.viewMode == ViewModeTasks {
-			m.sortBy = "created"
-		} else {
-			m.sortBy = "created"
-		}
+		m.sortBy = "created"
 		m.mode = previousMode
 		m.sortFiles()
 		m.loadVisibleMetadata()

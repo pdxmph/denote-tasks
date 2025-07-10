@@ -1,76 +1,79 @@
 # Project Charter: denote-tasks
 
-Version: 1.0.0  
-Date: 2025-01-13
+Version: 2.0.0  
+Date: 2025-01-14
 
 ## Project Vision
 
-**denote-tasks** is a task management system built on the Denote file naming convention. It extends Denote with task-specific metadata while maintaining 100% compatibility with Emacs Denote.
+**denote-tasks** is a focused task management tool that uses the Denote file naming convention for consistent, unique identifiers. It provides powerful task and project management features through a clean, simple interface.
 
 ### Core Philosophy
 
-"Your tasks are just Denote files with extra metadata."
+"Focus on what matters: getting tasks done."
 
 ## Design Principles
 
-1. **Denote Purity**
-   - Every file follows the Denote naming convention
-   - No support for other markdown formats
-   - Emacs Denote can read all our files
-   - We can read all Emacs Denote files
+1. **Task Focus**
+   - Only task and project files are managed
+   - No general notes or document management
+   - Clear, single purpose
 
-2. **Single Directory**
-   - Notes and tasks coexist naturally
-   - Organization through tags, not directories
-   - No artificial separation
+2. **Denote Format**
+   - Use Denote naming for unique, stable IDs
+   - Compatible file format with Emacs Denote
+   - No proprietary extensions
 
-3. **Minimal Extension**
-   - Tasks add YAML frontmatter to Denote files
-   - Frontmatter is ignored by Emacs (appears as content)
-   - No proprietary formats or lock-in
+3. **Simplicity**
+   - Minimal configuration
+   - Intuitive operations
+   - No feature creep
 
-4. **Two Interfaces, One Tool**
-   - CLI for quick operations
-   - TUI for interactive work
-   - Same filters, same operations
+4. **Two Interfaces, One Purpose**
+   - CLI for quick task operations
+   - TUI for interactive task management
+   - Consistent task-focused functionality
 
 ## What We Are Building
 
 ### Included Features
 
-- **Denote Compliance**
-  - Standard Denote filenames: `YYYYMMDDTHHMMSS--title__tags.md`
-  - Denote identifier as primary key
-  - Tag-based organization
-
 - **Task Management**
-  - Task creation with YAML frontmatter
-  - Status tracking (open, done, paused, etc.)
+  - Task files with `__task` tag
+  - YAML frontmatter for metadata
+  - Status tracking (open, done, paused, delegated, dropped)
   - Priority levels (p1, p2, p3)
-  - Due dates and scheduling
-  - Project associations using Denote IDs
-  - Time estimates (Fibonacci)
-  - Areas for life contexts
+  - Due dates with natural language parsing
+  - Time estimates
+  - Areas for contexts (work, personal, etc.)
+  - Task logging with timestamps
 
 - **Project Management**
-  - Projects are Denote files with project tag
+  - Project files with `__project` tag
   - Task-project associations via Denote IDs
-  - Project status and timelines
-  - Hierarchical project views
+  - Project status tracking
+  - Project timeline management
+  - View all tasks in a project
 
-- **Dual Interface**
-  - CLI: `denote-tasks add "Fix bug"`
+- **Interfaces**
+  - CLI: `denote-tasks task new "Fix bug"`
   - TUI: `denote-tasks --tui`
-  - Shared filtering system
+  - Consistent filtering and sorting
+
+- **Organization**
+  - Filter by area, priority, status, project
+  - Sort by due date, priority, modification time
+  - Search by title or tags
+  - "Due soon" and overdue tracking
 
 ### Explicitly Excluded
 
+- ❌ General note management
+- ❌ Document browsing
+- ❌ Non-task/project files
 - ❌ TaskWarrior integration
-- ❌ Plain markdown support  
-- ❌ Multiple note formats
-- ❌ Separate directories for tasks/notes
-- ❌ Import/export from other systems
-- ❌ Non-Denote file support
+- ❌ Multiple file formats
+- ❌ Import/export systems
+- ❌ File management operations beyond tasks
 
 ## Technical Architecture
 
@@ -80,22 +83,24 @@ denote-tasks/
 │   └── denote-tasks/
 │       └── main.go          # Entry point
 ├── internal/
-│   ├── denote/              # Denote operations
-│   │   ├── id.go            # ID parsing/generation
-│   │   ├── filename.go      # Filename parsing
-│   │   └── scanner.go       # Directory scanning
-│   ├── task/                # Task-specific logic
+│   ├── denote/              # Denote format operations
+│   │   ├── parser.go        # File parsing
+│   │   ├── scanner.go       # Task/project scanning
+│   │   └── types.go         # Core types
+│   ├── task/                # Task logic
 │   │   ├── task.go          # Task operations
-│   │   ├── project.go       # Project operations
-│   │   └── frontmatter.go   # YAML handling
+│   │   └── update.go        # Task updates
 │   ├── core/                # Business logic
-│   │   ├── filter.go        # Filtering system
-│   │   ├── sort.go          # Sorting logic
-│   │   └── cache.go         # Metadata cache
+│   │   └── filter.go        # Task filtering
 │   ├── cli/                 # CLI interface
+│   │   ├── task_commands.go # Task commands
+│   │   └── project_commands.go # Project commands
 │   └── tui/                 # TUI interface
+│       ├── task_view.go     # Task list view
+│       └── project_view.go  # Project view
 └── docs/
-    └── DENOTE_TASK_SPEC.md  # Specification
+    ├── DENOTE_TASK_SPEC.md  # File specification
+    └── REFACTORING_PLAN.md  # Focus refactoring
 ```
 
 ## Data Format (Denote Task Spec v2.0.0)
@@ -152,12 +157,13 @@ Improve search functionality across the application.
 
 | Feature | notes-cli/tui | denote-tasks |
 |---------|---------------|--------------|
-| File formats | Multiple | Denote only |
-| Directory structure | Separate tasks/notes | Single directory |
-| TaskWarrior | Supported | Not supported |
-| Note types | Various markdown | Denote files only |
+| Purpose | Notes + Tasks | Tasks only |
+| File types | All markdown | Task/Project files only |
+| Directory structure | Separate tasks/notes | Task directory |
+| TaskWarrior | Supported | Not needed |
+| Note management | Yes | No |
 | Project references | String matching | Denote IDs |
-| Complexity | High | Low |
+| Complexity | High | Minimal |
 
 ## Development Approach
 
@@ -191,11 +197,12 @@ Minimal configuration in `~/.config/denote-tasks/config.toml`:
 
 ```toml
 # Required
-notes_directory = "~/notes"
+notes_directory = "~/tasks"  # Where task files live
 
 # Optional
 editor = "nvim"
 default_area = "work"
+soon_days = 7  # Days ahead for "due soon"
 
 [tui]
 theme = "default"
@@ -203,75 +210,86 @@ theme = "default"
 
 ## Success Criteria
 
-1. **Emacs Compatibility**: Can exchange files with Emacs Denote
-2. **Simplicity**: <5000 LOC total
-3. **Performance**: Instant operations on 10k+ files
+1. **Focus**: Task management only, no scope creep
+2. **Simplicity**: <3000 LOC total
+3. **Performance**: Instant operations on thousands of tasks
 4. **Reliability**: Zero data corruption
-5. **Usability**: Intuitive for Denote users
+5. **Usability**: Intuitive task workflows
 
-## Migration from Legacy Tools
+## Migration Guide
+
+For users expecting note management:
+
+1. **Purpose Change**: This tool manages tasks only
+2. **Note Files**: Use a different tool for general notes
+3. **Task Files**: Must have `__task` tag
+4. **Project Files**: Must have `__project` tag
 
 For users of notes-cli/tui:
 
-1. **File Format**: Already compatible if using Denote
-2. **Project References**: Need migration to Denote IDs
-3. **Directory**: Move tasks to notes directory
-4. **Config**: Simplified configuration
-
-Provide migration tool:
-```bash
-denote-tasks migrate --from notes-cli ~/old-tasks
-```
+1. **Task Format**: Compatible if using Denote format
+2. **Notes**: Extract to separate tool/directory
+3. **Projects**: Ensure they have `__project` tag
+4. **Focus**: Embrace the simplified workflow
 
 ## Design Decisions
 
-1. **Why Denote Only?**
-   - Simplicity and focus
+1. **Why Task-Only?**
+   - Clear purpose and focus
+   - Simpler codebase
+   - Better user experience
+   - No mode confusion
+
+2. **Why Keep Denote Format?**
+   - Excellent ID system
    - Guaranteed uniqueness
-   - Emacs ecosystem compatibility
-   - Immutable identifiers
+   - Stable references
+   - Good filename convention
 
-2. **Why No TaskWarrior?**
-   - Different philosophies
-   - Added complexity
-   - Denote is sufficient
-
-3. **Why Single Directory?**
-   - Natural organization
-   - Simpler mental model
-   - Better for sync
+3. **Why No General Notes?**
+   - Avoid feature creep
+   - Maintain focus
+   - Reduce complexity
+   - Clear boundaries
 
 4. **Why YAML Frontmatter?**
    - Human readable
    - Well-supported
-   - Emacs ignores it
+   - Structured data
+   - Easy to parse
 
 ## Future Possibilities
 
 Once core is solid:
 
-- Web interface
-- Mobile app
-- Org-mode export
-- CalDAV sync
-- Git integration
+- Task templates
+- Recurring tasks
+- Time tracking
+- Team features
+- API access
 
-But always maintaining Denote purity.
+But always maintaining task focus.
 
 ## Getting Started
 
 ```bash
 # Create new task
-denote-tasks add "Write project charter"
+denote-tasks task new "Write documentation" --priority p1
 
-# View tasks
-denote-tasks list
+# List all open tasks
+denote-tasks task list
+
+# List tasks for a project
+denote-tasks project tasks <project-id>
 
 # Interactive mode
 denote-tasks --tui
 
-# Filter tasks
-denote-tasks list --area work --status open
+# Mark task as done
+denote-tasks task done 123
+
+# Create a project
+denote-tasks project new "Q1 Goals"
 ```
 
 ## License
@@ -280,4 +298,4 @@ MIT License - Keep it simple and open.
 
 ## Summary
 
-denote-tasks is a focused, opinionated task manager that embraces Denote's philosophy of stable, unique identifiers. By constraining ourselves to Denote files only, we gain simplicity, reliability, and perfect interoperability with the Emacs ecosystem.
+denote-tasks is a focused task management tool that leverages Denote's excellent file naming convention for stable, unique identifiers. By constraining ourselves to task management only, we achieve clarity of purpose, a simpler codebase, and an intuitive user experience. This is not a general-purpose note manager—it's a tool designed to do one thing exceptionally well: help you manage your tasks and projects.

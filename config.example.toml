@@ -1,8 +1,9 @@
 # Example configuration for denote-tasks
 # Copy this to ~/.config/denote-tasks/config.toml and modify as needed
 
-# Required: Path to your Denote notes directory
-notes_directory = "~/notes"
+# Required: Path to your task directory
+# This is where your task and project files live
+notes_directory = "~/tasks"
 
 # Optional: External editor (defaults to vim)
 editor = "vim"
@@ -17,12 +18,7 @@ soon_horizon = 3
 [tui]
 theme = "default"  # Options: default, dark, light, high-contrast, minimal
 
-# Optional: Notes mode default sort settings
-[notes]
-sort_by = "modified"    # Options: created, modified, title
-sort_order = "reverse"  # Options: normal, reverse (reverse = newest first)
-
-# Optional: Tasks mode default sort settings
+# Optional: Task sorting preferences
 [tasks]
 sort_by = "due"        # Options: due, priority, project, estimate, title, created, modified
 sort_order = "normal"  # Options: normal, reverse (normal = closest due dates first)

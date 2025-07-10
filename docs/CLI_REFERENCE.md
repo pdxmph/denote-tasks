@@ -2,7 +2,9 @@
 
 ## Overview
 
-The denote-tasks CLI uses an entity-first command structure:
+denote-tasks is a focused task management tool using the Denote file naming convention. It provides both CLI and TUI interfaces for managing tasks and projects.
+
+The CLI uses an entity-first command structure:
 
 ```
 denote-tasks <entity> <action> [options] [arguments]
@@ -15,7 +17,7 @@ denote-tasks <entity> <action> [options] [arguments]
 These options can be used with any command:
 
 - `--config PATH` - Use specific config file
-- `--dir PATH` - Override notes directory  
+- `--dir PATH` - Override task directory  
 - `--area AREA` - Filter by area (for TUI or commands)
 - `--tui, -t` - Launch TUI interface
 - `--json` - Output in JSON format (not yet implemented)

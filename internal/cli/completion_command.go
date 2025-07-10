@@ -22,7 +22,7 @@ func CompletionCommand(cfg *config.Config) *Command {
 			}
 
 			scanner := denote.NewScanner(cfg.NotesDirectory)
-			files, err := scanner.FindAllNotes()
+			files, err := scanner.FindAllTaskAndProjectFiles()
 			if err != nil {
 				return fmt.Errorf("failed to scan directory: %v", err)
 			}
@@ -133,7 +133,7 @@ func outputTags(files []denote.File) error {
 	for _, file := range files {
 		for _, tag := range file.Tags {
 			// Skip special tags
-			if tag != "task" && tag != "project" && tag != "note" {
+			if tag != "task" && tag != "project" {
 				tags[tag] = true
 			}
 		}

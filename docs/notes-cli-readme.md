@@ -1,4 +1,10 @@
-# Notes CLI
+# DEPRECATED: Notes CLI
+
+**Note: This document is from the legacy notes-cli project. For current documentation, see the main README.md**
+
+---
+
+# Notes CLI (Legacy)
 
 A command-line implementation of Denote for creating and managing notes with YAML frontmatter, extended with comprehensive task and project management capabilities.
 

@@ -83,14 +83,10 @@ func (m Model) renderNormal() string {
 }
 
 func (m Model) renderHeader() string {
-	// Title shows current mode
-	titleText := "Denote Notes"
-	if m.viewMode == ViewModeTasks {
-		if m.projectFilter {
-			titleText = "Denote Projects"
-		} else {
-			titleText = "Denote Tasks"
-		}
+	// Title shows current mode (always tasks now)
+	titleText := "Denote Tasks"
+	if m.projectFilter {
+		titleText = "Denote Projects"
 	}
 	title := titleStyle.Render(titleText)
 	
@@ -125,13 +121,9 @@ func (m Model) renderHeader() string {
 	}
 	
 	// Status line
-	itemType := "notes"
-	if m.viewMode == ViewModeTasks {
-		if m.projectFilter {
-			itemType = "projects"
-		} else {
-			itemType = "tasks"
-		}
+	itemType := "tasks"
+	if m.projectFilter {
+		itemType = "projects"
 	}
 	status := fmt.Sprintf("%d %s", len(m.filtered), itemType)
 	if len(filterInfo) > 0 {
@@ -149,13 +141,9 @@ func (m Model) renderHeader() string {
 
 func (m Model) renderFileList() string {
 	if len(m.filtered) == 0 {
-		msg := "No notes found"
-		if m.viewMode == ViewModeTasks {
-			if m.projectFilter {
-				msg = "No projects found"
-			} else {
-				msg = "No tasks found"
-			}
+		msg := "No tasks found"
+		if m.projectFilter {
+			msg = "No projects found"
 		}
 		return helpStyle.Render(msg)
 	}
@@ -182,7 +170,7 @@ func (m Model) renderFileList() string {
 	
 	// Check if we should show divider in the visible range
 	showDividerAt := -1
-	if m.viewMode == ViewModeTasks && m.sortBy == "due" && !m.reverseSort {
+	if m.sortBy == "due" && !m.reverseSort {
 		// Find where to show the divider in the full list
 		for i := 0; i < len(m.filtered); i++ {
 			file := m.filtered[i]
@@ -222,42 +210,26 @@ func (m Model) renderFileList() string {
 func (m Model) renderFileLine(index int) string {
 	file := m.filtered[index]
 	
-	// Check if we're in task mode and have task/project metadata
-	if m.viewMode == ViewModeTasks {
-		if task, ok := m.taskMetadata[file.Path]; ok {
-			return m.renderTaskLine(index, file, task)
-		}
-		if project, ok := m.projectMetadata[file.Path]; ok {
-			return m.renderProjectLine(index, file, project)
-		} else if file.IsProject() {
-			// Project without metadata - show debug
-			line := fmt.Sprintf("%s %s %-15s [NO METADATA] %-40s", 
-				" ", ">", file.ID, truncate(file.Title, 40))
-			return baseStyle.Render(line)
-		}
-		// If we're in task mode but no metadata found, still show the item
-		// This helps with debugging
+	// Always render task/project lines (we're always in task mode now)
+	if task, ok := m.taskMetadata[file.Path]; ok {
+		return m.renderTaskLine(index, file, task)
+	}
+	if project, ok := m.projectMetadata[file.Path]; ok {
+		return m.renderProjectLine(index, file, project)
+	} else if file.IsProject() {
+		// Project without metadata - show debug
+		line := fmt.Sprintf("%s %s %-15s [NO METADATA] %-40s", 
+			" ", ">", file.ID, truncate(file.Title, 40))
+		return baseStyle.Render(line)
 	}
 	
-	// Selection indicator
+	// Fallback for debugging - show basic file info
 	selector := " "
 	if index == m.cursor {
 		selector = ">"
 	}
 	
-	// Format: ID Title [tags]
-	id := file.ID
-	title := file.Title
-	if title == "" {
-		title = file.Slug
-	}
-	
-	tags := ""
-	if len(file.Tags) > 0 {
-		tags = fmt.Sprintf(" [%s]", strings.Join(file.Tags, ", "))
-	}
-	
-	line := fmt.Sprintf("%s %-15s %-40s%s", selector, id, truncate(title, 40), tags)
+	line := fmt.Sprintf("%s %-15s [UNKNOWN] %-40s", selector, file.ID, truncate(file.Title, 40))
 	
 	if index == m.cursor {
 		return selectedStyle.Render(line)
@@ -588,13 +560,30 @@ func (m Model) renderFooter() string {
 		return "\n" + prompt + helpStyle.Render(help)
 	}
 	
+	// Show appropriate hotkeys based on current view
 	var help []string
-	if m.viewMode == ViewModeTasks {
+	if m.projectFilter {
+		// Project mode hotkeys
+		help = []string{
+			"j/k:nav",
+			"/:search",
+			"enter:view",
+			"c:create project",
+			"x:delete",
+			"e:edit",
+			"f:filter",
+			"t:tasks",
+			"S:sort",
+			"?:help",
+			"q:quit",
+		}
+	} else {
 		// Task mode hotkeys
 		help = []string{
 			"j/k:nav",
 			"/:search",
 			"enter:preview",
+			"c:create task",
 			"1/2/3:priority",
 			"s:state",
 			"x:delete",
@@ -603,22 +592,6 @@ func (m Model) renderFooter() string {
 			"f:filter",
 			"p:projects",
 			"S:sort",
-			"t:notes mode",
-			"?:help",
-			"q:quit",
-		}
-	} else {
-		// Notes mode hotkeys
-		help = []string{
-			"j/k:nav",
-			"/:search",
-			"enter:preview",
-			"n:new",
-			"x:delete",
-			"e:edit",
-			"t:task mode",
-			"S:sort",
-			"r:reverse",
 			"?:help",
 			"q:quit",
 		}
@@ -628,9 +601,7 @@ func (m Model) renderFooter() string {
 }
 
 func (m Model) renderHelp() string {
-	var help string
-	if m.viewMode == ViewModeTasks {
-		help = `
+	help := `
 Denote Tasks - Keyboard Shortcuts
 
 Navigation:
@@ -650,42 +621,16 @@ Task Actions:
   l       Add log entry to task
   /       Fuzzy search (use #tag for tag search)
   f       Filter menu (area/priority/state/soon)
-  p       Toggle projects view
+  p       Switch to projects view
+  t       Switch to tasks view
   S       Sort options menu (uppercase S)
   r       Toggle sort order
-  t       Switch to Notes mode
   
 Other:
   ?       Toggle this help
   q       Quit
 
 Press any key to continue...`
-	} else {
-		help = `
-Denote Notes - Keyboard Shortcuts
-
-Navigation:
-  j/↓     Move down
-  k/↑     Move up
-  gg      Go to top
-  G       Go to bottom
-
-Actions:
-  Enter   Preview note
-  n       Create new note
-  x       Delete note
-  e       Edit note in external editor
-  t       Switch to Task mode
-  /       Fuzzy search (use #tag for tag search)
-  S       Sort options menu
-  r       Toggle sort order
-  
-Other:
-  ?       Toggle this help
-  q       Quit
-
-Press any key to continue...`
-	}
 
 	return titleStyle.Render("Help") + help
 }
@@ -714,14 +659,7 @@ func (m Model) renderPreview() string {
 }
 
 func (m Model) renderCreate() string {
-	if m.viewMode != ViewModeTasks {
-		// Simple create for notes
-		prompt := titleStyle.Render("Create New Note")
-		input := baseStyle.Render(fmt.Sprintf("\nTitle: %s█", m.createTitle))
-		help := helpStyle.Render("\nEnter to continue, Esc to cancel")
-		return prompt + input + help
-	}
-	
+	// Always in task mode now
 	// Full task creation form
 	prompt := titleStyle.Render("Create New Task")
 	
@@ -801,8 +739,10 @@ func (m Model) renderCreate() string {
 }
 
 func (m Model) renderCreateTags() string {
-	itemType := "Note"
-	if m.viewMode == ViewModeTasks {
+	var itemType string
+	if m.projectFilter {
+		itemType = "Project"
+	} else {
 		itemType = "Task"
 		if m.areaFilter != "" {
 			itemType = fmt.Sprintf("Task (Area: %s)", m.areaFilter)
@@ -836,8 +776,8 @@ func (m Model) renderSort() string {
 	}
 	
 	options := "\n\nSort by:"
-	if m.viewMode == ViewModeTasks {
-		options += `
+	// Always in task mode now
+	options += `
   (d) Due date
   (p) Priority
   (j) Project
@@ -845,12 +785,6 @@ func (m Model) renderSort() string {
   (t) Title
   (c) Created date
   (m) Modified date`
-	} else {
-		options += `
-  (t) Title
-  (c) Created date
-  (m) Modified date`
-	}
 	
 	options += `
   
@@ -1183,4 +1117,33 @@ func (m Model) renderProjectSelect() string {
 	help := helpStyle.Render("\n\nj/k or ↑/↓: navigate • 0: unassign • 1-9: quick select • Enter: select • Esc: cancel")
 	
 	return prompt + "\n\n" + list + help
+}
+
+func (m Model) renderCreateProject() string {
+	itemType := "Project"
+	if m.areaFilter != "" {
+		itemType = fmt.Sprintf("Project (Area: %s)", m.areaFilter)
+	}
+	prompt := titleStyle.Render(fmt.Sprintf("Create New %s", itemType))
+	input := baseStyle.Render(fmt.Sprintf("\nTitle: %s█", m.createTitle))
+	help := helpStyle.Render("\nEnter to continue, Esc to cancel")
+	
+	return prompt + input + help
+}
+
+func (m Model) renderCreateProjectTags() string {
+	itemType := "Project"
+	if m.areaFilter != "" {
+		itemType = fmt.Sprintf("Project (Area: %s)", m.areaFilter)
+	}
+	prompt := titleStyle.Render(fmt.Sprintf("Create New %s", itemType))
+	titleLine := baseStyle.Render(fmt.Sprintf("\nTitle: %s", m.createTitle))
+	input := baseStyle.Render(fmt.Sprintf("\nTags (space-separated): %s█", m.createTags))
+	if m.areaFilter != "" {
+		help := helpStyle.Render(fmt.Sprintf("\nArea '%s' will be added automatically\nEnter to create, Esc to go back", m.areaFilter))
+		return prompt + titleLine + input + help
+	}
+	help := helpStyle.Render("\nEnter to create, Esc to go back")
+	
+	return prompt + titleLine + input + help
 }

@@ -1,4 +1,10 @@
-# Note Creation Test Plan
+# DEPRECATED: Note Creation Test Plan
+
+**Note: This feature has been removed. denote-tasks is now focused exclusively on task management.**
+
+---
+
+# Note Creation Test Plan (Legacy)
 
 ## Feature: Create New Note (Issue #2)
 

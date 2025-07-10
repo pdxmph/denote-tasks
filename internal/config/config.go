@@ -10,12 +10,11 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	NotesDirectory string       `toml:"notes_directory"`
+	NotesDirectory string       `toml:"notes_directory"` // Keep name for backward compatibility
 	Editor         string       `toml:"editor"`
 	DefaultArea    string       `toml:"default_area"`
 	SoonHorizon    int          `toml:"soon_horizon"`  // Days for "soon" filter, default 3
 	TUI            TUIConfig    `toml:"tui"`
-	Notes          NotesConfig  `toml:"notes"`
 	Tasks          TasksConfig  `toml:"tasks"`
 }
 
@@ -24,13 +23,7 @@ type TUIConfig struct {
 	Theme string `toml:"theme"`
 }
 
-// NotesConfig represents notes mode specific settings
-type NotesConfig struct {
-	SortBy    string `toml:"sort_by"`    // created, modified, title
-	SortOrder string `toml:"sort_order"` // normal, reverse
-}
-
-// TasksConfig represents tasks mode specific settings
+// TasksConfig represents task-specific settings
 type TasksConfig struct {
 	SortBy    string `toml:"sort_by"`    // due, priority, project, estimate, title, created, modified
 	SortOrder string `toml:"sort_order"` // normal, reverse
@@ -40,16 +33,12 @@ type TasksConfig struct {
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
 	return &Config{
-		NotesDirectory: filepath.Join(homeDir, "notes"),
+		NotesDirectory: filepath.Join(homeDir, "tasks"),
 		Editor:         "vim",
 		DefaultArea:    "",
 		SoonHorizon:    3,  // Default to 3 days
 		TUI: TUIConfig{
 			Theme: "default",
-		},
-		Notes: NotesConfig{
-			SortBy:    "modified",
-			SortOrder: "reverse", // Most recently modified first
 		},
 		Tasks: TasksConfig{
 			SortBy:    "due",
@@ -156,25 +145,6 @@ func (c *Config) Validate() error {
 	}
 	if !themeValid {
 		return fmt.Errorf("invalid theme: %s", c.TUI.Theme)
-	}
-
-	// Validate notes sort options
-	if c.Notes.SortBy != "" {
-		validNoteSorts := []string{"modified", "created", "title"}
-		valid := false
-		for _, sort := range validNoteSorts {
-			if c.Notes.SortBy == sort {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			return fmt.Errorf("invalid notes sort_by: %s (valid: created, modified, title)", c.Notes.SortBy)
-		}
-	}
-	
-	if c.Notes.SortOrder != "" && c.Notes.SortOrder != "normal" && c.Notes.SortOrder != "reverse" {
-		return fmt.Errorf("invalid notes sort_order: %s (valid: normal, reverse)", c.Notes.SortOrder)
 	}
 
 	// Validate tasks sort options

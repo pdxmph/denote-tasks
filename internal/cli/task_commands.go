@@ -184,7 +184,7 @@ func taskListCommand(cfg *config.Config) *Command {
 
 		// Otherwise, list tasks in CLI
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllNotes()
+		files, err := scanner.FindAllTaskAndProjectFiles()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
@@ -521,7 +521,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 
 		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllNotes()
+		files, err := scanner.FindAllTaskAndProjectFiles()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
@@ -622,7 +622,7 @@ func taskDoneCommand(cfg *config.Config) *Command {
 
 		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllNotes()
+		files, err := scanner.FindAllTaskAndProjectFiles()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
@@ -693,7 +693,7 @@ func taskLogCommand(cfg *config.Config) *Command {
 
 		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllNotes()
+		files, err := scanner.FindAllTaskAndProjectFiles()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}

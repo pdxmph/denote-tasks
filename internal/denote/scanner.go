@@ -19,18 +19,30 @@ func NewScanner(dir string) *Scanner {
 	return &Scanner{BaseDir: dir}
 }
 
-// FindAllNotes finds all Denote files in the directory
-func (s *Scanner) FindAllNotes() ([]File, error) {
-	pattern := filepath.Join(s.BaseDir, "*.md")
-	paths, err := filepath.Glob(pattern)
+// FindAllTaskAndProjectFiles finds all task and project files in the directory
+// This is primarily used for completion and scanning operations
+func (s *Scanner) FindAllTaskAndProjectFiles() ([]File, error) {
+	var allFiles []File
+	
+	// Find task files
+	taskPattern := filepath.Join(s.BaseDir, "*__task*.md")
+	taskPaths, err := filepath.Glob(taskPattern)
 	if err != nil {
-		return nil, fmt.Errorf("failed to glob files: %w", err)
+		return nil, fmt.Errorf("failed to glob task files: %w", err)
 	}
 	
-	var files []File
-	parser := NewParser()
+	// Find project files
+	projectPattern := filepath.Join(s.BaseDir, "*__project*.md")
+	projectPaths, err := filepath.Glob(projectPattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob project files: %w", err)
+	}
 	
-	for _, path := range paths {
+	// Combine paths
+	allPaths := append(taskPaths, projectPaths...)
+	
+	parser := NewParser()
+	for _, path := range allPaths {
 		// Parse filename
 		file, err := parser.ParseFilename(filepath.Base(path))
 		if err != nil {
@@ -52,10 +64,16 @@ func (s *Scanner) FindAllNotes() ([]File, error) {
 			}
 		}
 		
-		files = append(files, *file)
+		allFiles = append(allFiles, *file)
 	}
 	
-	return files, nil
+	return allFiles, nil
+}
+
+// FindAllNotes is deprecated - use FindAllTaskAndProjectFiles instead
+// Kept for backward compatibility during refactoring
+func (s *Scanner) FindAllNotes() ([]File, error) {
+	return s.FindAllTaskAndProjectFiles()
 }
 
 // FindTasks finds all task files in the directory
@@ -200,41 +218,11 @@ func reverseTaskSlice(tasks []*Task) {
 	}
 }
 
-// SortFiles sorts File slices by various criteria (for notes mode)
+// SortFiles is deprecated - use SortTaskFiles instead
+// This function is kept for backward compatibility during refactoring
 func SortFiles(files []File, sortBy string, reverse bool) {
-	switch sortBy {
-	case "title":
-		sort.Slice(files, func(i, j int) bool {
-			return strings.ToLower(files[i].Title) < strings.ToLower(files[j].Title)
-		})
-	case "modified":
-		sort.Slice(files, func(i, j int) bool {
-			// If both have zero time, fall back to ID
-			if files[i].ModTime.IsZero() && files[j].ModTime.IsZero() {
-				return files[i].ID < files[j].ID
-			}
-			// Zero times go to the end
-			if files[i].ModTime.IsZero() {
-				return false
-			}
-			if files[j].ModTime.IsZero() {
-				return true
-			}
-			return files[i].ModTime.After(files[j].ModTime)
-		})
-	case "created":
-		fallthrough
-	case "date":
-		fallthrough
-	default:
-		sort.Slice(files, func(i, j int) bool {
-			return files[i].ID < files[j].ID
-		})
-	}
-	
-	if reverse {
-		reverseFileSlice(files)
-	}
+	// Just delegate to SortTaskFiles with empty metadata maps
+	SortTaskFiles(files, sortBy, reverse, make(map[string]*Task), make(map[string]*Project))
 }
 
 // SortTaskFiles sorts files with task metadata by various criteria

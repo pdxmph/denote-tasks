@@ -1,13 +1,14 @@
 # denote-tasks
 
-A task management system built on the Denote file naming convention.
+A focused task management tool using the Denote file naming convention.
 
 ## Features
 
-- Pure Denote implementation
-- Task and project management
-- CLI and TUI interfaces
-- 100% compatible with Emacs Denote
+- **Task-focused** - Built specifically for task management, not general notes
+- **Pure Denote** - Uses standard Denote file naming for compatibility
+- **Project support** - Organize tasks by project with automatic linking
+- **Dual interface** - Both CLI and TUI for different workflows
+- **Emacs compatible** - Works seamlessly with Emacs Denote for task files
 
 ## Installation
 
@@ -49,7 +50,7 @@ See [CLI Reference](docs/CLI_REFERENCE.md) for full command documentation.
 Create `~/.config/denote-tasks/config.toml`:
 
 ```toml
-notes_directory = "~/notes"
+notes_directory = "~/tasks"
 editor = "vim"
 default_area = "work"
 

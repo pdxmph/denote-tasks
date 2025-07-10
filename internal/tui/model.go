@@ -34,7 +34,6 @@ type Model struct {
 	width      int
 	height     int
 	mode       Mode
-	viewMode   ViewMode
 	sortBy     string
 	reverseSort bool
 	
@@ -112,22 +111,21 @@ const (
 	ModeStateFilter
 	ModeLogEntry
 	ModeProjectSelect
+	ModeCreateProject
+	ModeCreateProjectTags
 )
 
-type ViewMode int
+// ViewMode removed - we're always in task mode now
 
-const (
-	ViewModeNotes ViewMode = iota
-	ViewModeTasks
-)
-
-// noteCreatedMsg is sent when a note is successfully created
-type noteCreatedMsg struct {
-	path string
-}
+// Removed noteCreatedMsg - we only create tasks now
 
 // taskCreatedMsg is sent when a task is successfully created
 type taskCreatedMsg struct {
+	path string
+}
+
+// projectCreatedMsg is sent when a project is successfully created
+type projectCreatedMsg struct {
 	path string
 }
 
@@ -137,17 +135,16 @@ type fileEditedMsg struct {
 }
 
 func NewModel(cfg *config.Config) (*Model, error) {
-	// Use configured defaults for notes mode
-	reverseSort := cfg.Notes.SortOrder == "reverse"
-	sortBy := cfg.Notes.SortBy
+	// Use configured defaults for tasks mode (we're task-only now)
+	reverseSort := cfg.Tasks.SortOrder == "reverse"
+	sortBy := cfg.Tasks.SortBy
 	if sortBy == "" {
-		sortBy = "created" // Default to created date
+		sortBy = "due" // Default to due date for tasks
 	}
 	
 	m := &Model{
 		config:          cfg,
 		mode:            ModeNormal,
-		viewMode:        ViewModeNotes, // Start in Notes mode
 		sortBy:          sortBy,
 		reverseSort:     reverseSort,
 		taskMetadata:    make(map[string]*denote.Task),
@@ -167,7 +164,7 @@ func NewModel(cfg *config.Config) (*Model, error) {
 
 func (m *Model) scanFiles() error {
 	scanner := denote.NewScanner(m.config.NotesDirectory)
-	files, err := scanner.FindAllNotes()
+	files, err := scanner.FindAllTaskAndProjectFiles()
 	if err != nil {
 		return err
 	}
@@ -253,22 +250,14 @@ func (m *Model) applyFilters() {
 	filtered := make([]denote.File, 0, len(m.files))
 	
 	for _, f := range m.files {
-		// Apply view mode filter first
-		if m.viewMode == ViewModeTasks {
-			// In Task mode, only show tasks and projects
-			if !f.IsTask() && !f.IsProject() {
-				continue
-			}
-			
-			// Apply project filter if active
-			if m.projectFilter {
-				if !f.IsProject() {
-					continue
-				}
-			}
-		} else {
-			// In Notes mode, exclude tasks and projects
-			if f.IsTask() || f.IsProject() {
+		// Always in task mode - only show tasks and projects
+		if !f.IsTask() && !f.IsProject() {
+			continue
+		}
+		
+		// Apply project filter if active
+		if m.projectFilter {
+			if !f.IsProject() {
 				continue
 			}
 		}
@@ -308,13 +297,12 @@ func (m *Model) applyFilters() {
 			}
 		}
 		
-		// Apply filters (only in task mode)
-		if m.viewMode == ViewModeTasks {
-			// Load metadata if needed for filtering
-			var taskMeta *denote.Task
-			var projectMeta *denote.Project
-			
-			if f.IsTask() {
+		// Apply filters
+		// Load metadata if needed for filtering
+		var taskMeta *denote.Task
+		var projectMeta *denote.Project
+		
+		if f.IsTask() {
 				task, ok := m.taskMetadata[f.Path]
 				if !ok {
 					// Load metadata on demand
@@ -387,7 +375,6 @@ func (m *Model) applyFilters() {
 					continue
 				}
 			}
-		}
 		
 		filtered = append(filtered, f)
 	}
@@ -401,13 +388,8 @@ func (m *Model) applyFilters() {
 }
 
 func (m *Model) sortFiles() {
-	if m.viewMode == ViewModeTasks {
-		// Use task-specific sorting for task mode
-		denote.SortTaskFiles(m.filtered, m.sortBy, m.reverseSort, m.taskMetadata, m.projectMetadata)
-	} else {
-		// Use note-specific sorting for notes mode
-		denote.SortFiles(m.filtered, m.sortBy, m.reverseSort)
-	}
+	// Always use task-specific sorting now
+	denote.SortTaskFiles(m.filtered, m.sortBy, m.reverseSort, m.taskMetadata, m.projectMetadata)
 }
 
 func (m Model) Init() tea.Cmd {
@@ -424,11 +406,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
 		
-	case noteCreatedMsg:
-		// Rescan files after note creation
-		m.scanFiles()
-		m.statusMsg = "Note created: " + msg.path
-		return m, nil
+	// Removed noteCreatedMsg case - we only create tasks now
 		
 	case taskCreatedMsg:
 		// Rescan files after task creation
@@ -470,6 +448,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.cursor = i
 					break
 				}
+			}
+		}
+		
+		return m, nil
+		
+	case projectCreatedMsg:
+		// Rescan files after project creation
+		m.scanFiles()
+		m.statusMsg = "Project created: " + msg.path
+		
+		// Reset create fields
+		m.createTitle = ""
+		m.createTags = ""
+		
+		// Set mode back to normal
+		m.mode = ModeNormal
+		
+		// Try to position cursor on the newly created project
+		for i, f := range m.filtered {
+			if f.Path == msg.path {
+				m.cursor = i
+				break
 			}
 		}
 		
@@ -659,22 +659,46 @@ func (m Model) create() tea.Cmd {
 			tags = strings.Fields(m.createTags)
 		}
 		
-		if m.viewMode == ViewModeTasks {
-			// Use the new createTask for tasks (this path is for the old flow)
+		// Create project or task depending on current view
+		if m.projectFilter {
+			// Create a project
+			// If area filter is active, add it to tags
+			if m.areaFilter != "" {
+				// Check if area tag already exists
+				areaExists := false
+				for _, tag := range tags {
+					if tag == m.areaFilter {
+						areaExists = true
+						break
+					}
+				}
+				if !areaExists {
+					tags = append(tags, m.areaFilter)
+				}
+			}
+			
+			project, err := task.CreateProject(m.config.NotesDirectory, m.createTitle, "", tags)
+			if err != nil {
+				return err
+			}
+			
+			// Update project metadata with area if filtered
+			if m.areaFilter != "" {
+				project.ProjectMetadata.Area = m.areaFilter
+				// Write back the updated metadata
+				if err := denote.UpdateProjectFile(project.File.Path, project.ProjectMetadata); err != nil {
+					return fmt.Errorf("failed to update project area: %w", err)
+				}
+			}
+			
+			return projectCreatedMsg{path: project.File.Path}
+		} else {
+			// Create a task
 			task, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.areaFilter)
 			if err != nil {
 				return err
 			}
-			
 			return taskCreatedMsg{path: task.Path}
-		} else {
-			// Create a note
-			filepath, err := denote.CreateNote(m.config.NotesDirectory, m.createTitle, tags)
-			if err != nil {
-				return err
-			}
-			
-			return noteCreatedMsg{path: filepath}
 		}
 	}
 }
@@ -1285,6 +1309,10 @@ func (m Model) View() string {
 		return m.renderLogEntry()
 	case ModeProjectSelect:
 		return m.renderProjectSelect()
+	case ModeCreateProject:
+		return m.renderCreateProject()
+	case ModeCreateProjectTags:
+		return m.renderCreateProjectTags()
 	default:
 		return m.renderNormal()
 	}

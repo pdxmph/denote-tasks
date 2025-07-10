@@ -27,7 +27,6 @@ func Run(cfg *config.Config, filters ...string) error {
 	// Handle initial flags
 	if showProjects {
 		// Show projects list
-		model.viewMode = ViewModeTasks  // Switch to task mode
 		model.projectFilter = true      // Filter to show only projects
 		// Use configured defaults for tasks
 		model.sortBy = cfg.Tasks.SortBy
@@ -47,7 +46,6 @@ func Run(cfg *config.Config, filters ...string) error {
 	} else if areaFilter != "" {
 		// Just area filter (tasks)
 		model.areaFilter = areaFilter
-		model.viewMode = ViewModeTasks  // Switch to task mode
 		model.stateFilter = "active"    // Apply active filter
 		// Use configured defaults for tasks
 		model.sortBy = cfg.Tasks.SortBy

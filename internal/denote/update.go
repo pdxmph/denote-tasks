@@ -414,3 +414,31 @@ func BulkUpdateTaskStatus(filepaths []string, newStatus string) error {
 	}
 	return nil
 }
+
+// UpdateProjectFile updates a project file with new metadata
+func UpdateProjectFile(path string, metadata ProjectMetadata) error {
+	// Read the current file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Parse existing frontmatter to get the content
+	fm, err := ParseFrontmatterFile(content)
+	if err != nil {
+		return fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Write updated content
+	newContent, err := WriteFrontmatterFile(metadata, fm.Content)
+	if err != nil {
+		return fmt.Errorf("failed to write frontmatter: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(path, newContent, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
