@@ -747,7 +747,11 @@ func (m *Model) updateTaskPriority(priority string) error {
 		
 		// Update our in-memory copy
 		task.TaskMetadata = taskMeta
-		m.statusMsg = fmt.Sprintf("Priority updated to %s", priority)
+		if priority == "" {
+			m.statusMsg = "Priority removed"
+		} else {
+			m.statusMsg = fmt.Sprintf("Priority updated to %s", priority)
+		}
 	}
 	
 	return nil

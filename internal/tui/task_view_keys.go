@@ -21,10 +21,21 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.viewingTask != nil {
 				switch m.editingField {
 				case "priority":
-					if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
+					if m.editBuffer == "" || m.editBuffer == "0" {
+						// Clear priority
+						if err := m.updateTaskField("priority", ""); err != nil {
+							m.statusMsg = fmt.Sprintf("Error: %v", err)
+						} else {
+							m.statusMsg = "Priority removed"
+						}
+					} else if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
 						if err := m.updateTaskField("priority", "p"+m.editBuffer); err != nil {
 							m.statusMsg = fmt.Sprintf("Error: %v", err)
+						} else {
+							m.statusMsg = fmt.Sprintf("Priority set to p%s", m.editBuffer)
 						}
+					} else {
+						m.statusMsg = "Priority must be 0 (clear), 1, 2, or 3"
 					}
 				case "status":
 					if err := m.updateTaskField("status", m.editBuffer); err != nil {
@@ -51,10 +62,21 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Handle project updates
 				switch m.editingField {
 				case "priority":
-					if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
+					if m.editBuffer == "" || m.editBuffer == "0" {
+						// Clear priority
+						if err := m.updateProjectField("priority", ""); err != nil {
+							m.statusMsg = fmt.Sprintf("Error: %v", err)
+						} else {
+							m.statusMsg = "Priority removed"
+						}
+					} else if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
 						if err := m.updateProjectField("priority", "p"+m.editBuffer); err != nil {
 							m.statusMsg = fmt.Sprintf("Error: %v", err)
+						} else {
+							m.statusMsg = fmt.Sprintf("Priority set to p%s", m.editBuffer)
 						}
+					} else {
+						m.statusMsg = "Priority must be 0 (clear), 1, 2, or 3"
 					}
 				case "status":
 					if err := m.updateProjectField("status", m.editBuffer); err != nil {
