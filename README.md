@@ -89,6 +89,7 @@ denote-tasks project tasks 15  # Show tasks for project
 
 - `Enter` - Preview/view item
 - `c` - Create new task or project
+- `0` - Clear priority
 - `1/2/3` - Set task priority (p1/p2/p3)
 - `s` - Change task state menu
 - `x` - Delete task/project

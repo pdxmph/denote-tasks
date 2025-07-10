@@ -209,6 +209,17 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Keep the project reference!
 		}
 		
+	case "0":
+		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
+			// Clear priority on selected task
+			task := &m.projectTasks[m.projectTasksCursor]
+			if err := m.updateTaskPriorityFromProject(task, ""); err != nil {
+				m.statusMsg = fmt.Sprintf("Error: %v", err)
+			} else {
+				m.statusMsg = "Task priority cleared"
+			}
+		}
+		
 	case "1", "2", "3":
 		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
 			// Set priority on selected task

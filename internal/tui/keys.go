@@ -417,6 +417,12 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = fmt.Sprintf("Error: %v", err)
 		}
 		
+	case "0":
+		// Clear priority
+		if err := m.updateTaskPriority(""); err != nil {
+			m.statusMsg = fmt.Sprintf("Error: %v", err)
+		}
+		
 	case "e":
 		// Edit task in external editor
 		if m.config.Editor != "" && m.cursor < len(m.filtered) {

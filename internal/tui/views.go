@@ -584,7 +584,7 @@ func (m Model) renderFooter() string {
 			"/:search",
 			"enter:preview",
 			"c:create task",
-			"1/2/3:priority",
+			"0-3:priority",
 			"s:state",
 			"x:delete",
 			"e:edit",
@@ -613,6 +613,7 @@ Navigation:
 Task Actions:
   Enter   Preview task
   c       Create new task (full form with metadata)
+  0       Clear priority
   1/2/3   Set priority (p1/p2/p3)
   s       Change task state (open/done/etc)
   x       Delete task/project
