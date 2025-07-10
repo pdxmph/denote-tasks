@@ -46,9 +46,23 @@ func Run(cfg *config.Config, args []string) error {
 		Usage: "denote-tasks <command> [options]",
 		Description: `A focused task management tool using Denote file naming convention.
 
-Commands:
-  task      Manage tasks
-  project   Manage projects  
+Task Commands (implicit):
+  new        Create a new task
+  list       List tasks
+  show       Show task details
+  update     Update task metadata
+  done       Mark tasks as done
+  log        Add log entry to task
+
+Project Commands:
+  project new      Create a new project
+  project list     List projects
+  project show     Show project details
+  project update   Update project metadata
+  project tasks    Show tasks for a project
+
+Other Commands:
+  completion  Generate shell completions
 
 Global Options:
   --tui, -t      Launch TUI interface
@@ -60,27 +74,17 @@ Global Options:
   --quiet, -q    Minimal output`,
 	}
 
-	// Add subcommands
-	root.Subcommands = []*Command{
-		TaskCommand(cfg),
+	// Get task commands and add them directly to root
+	taskCmd := TaskCommand(cfg)
+	for _, cmd := range taskCmd.Subcommands {
+		root.Subcommands = append(root.Subcommands, cmd)
+	}
+	
+	// Add project and completion commands
+	root.Subcommands = append(root.Subcommands, 
 		ProjectCommand(cfg),
 		CompletionCommand(cfg),
-	}
-
-	// Add legacy command aliases for compatibility
-	if len(remaining) > 0 {
-		switch remaining[0] {
-		case "add":
-			// Redirect to task new
-			return TaskCommand(cfg).Subcommands[0].Execute(remaining[1:])
-		case "list":
-			// Redirect to task list
-			return TaskCommand(cfg).Subcommands[1].Execute(remaining[1:])
-		case "done":
-			// Redirect to task done
-			return TaskCommand(cfg).Subcommands[3].Execute(remaining[1:])
-		}
-	}
+	)
 
 	// Execute command
 	return root.Execute(remaining)

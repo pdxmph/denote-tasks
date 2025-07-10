@@ -4,10 +4,11 @@
 
 denote-tasks is a focused task management tool using the Denote file naming convention. It provides both CLI and TUI interfaces for managing tasks and projects.
 
-The CLI uses an entity-first command structure:
+The CLI uses an implicit task-first command structure:
 
 ```
-denote-tasks <entity> <action> [options] [arguments]
+denote-tasks <action> [options] [arguments]      # For tasks (implicit)
+denote-tasks project <action> [options] [arguments]  # For projects (explicit)
 ```
 
 **Important**: Task operations use `index_id` values from the files, not display positions. When you see task "28" in the list, you use 28 in commands.
@@ -24,14 +25,16 @@ These options can be used with any command:
 - `--no-color` - Disable color output
 - `--quiet, -q` - Minimal output
 
-## Task Commands
+## Task Commands (Implicit)
 
-### task new
+Task commands don't require the "task" prefix - they're the default.
+
+### new
 
 Create a new task.
 
 ```bash
-denote-tasks task new [options] <title>
+denote-tasks new [options] <title>
 ```
 
 Options:
@@ -44,9 +47,9 @@ Options:
 
 Examples:
 ```bash
-denote-tasks task new "Review budget proposal"
-denote-tasks task new -p p1 --due tomorrow "Call client"
-denote-tasks task new --area work --project 20240315T093000 "Update docs"
+denote-tasks new "Review budget proposal"
+denote-tasks new -p p1 --due tomorrow "Call client"
+denote-tasks new --area work --project 20240315T093000 "Update docs"
 ```
 
 ### task list
@@ -54,7 +57,7 @@ denote-tasks task new --area work --project 20240315T093000 "Update docs"
 List tasks with filtering and sorting.
 
 ```bash
-denote-tasks task list [options]
+denote-tasks list [options]
 ```
 
 Options:
@@ -70,12 +73,12 @@ Options:
 
 Examples:
 ```bash
-denote-tasks task list                    # List open tasks
-denote-tasks task list --all              # List all tasks
-denote-tasks task list -p p1              # List only p1 tasks
-denote-tasks task list --area work        # List work tasks
-denote-tasks task list --overdue          # List overdue tasks
-denote-tasks task list --sort priority    # Sort by priority
+denote-tasks list                    # List open tasks
+denote-tasks list --all              # List all tasks
+denote-tasks list -p p1              # List only p1 tasks
+denote-tasks list --area work        # List work tasks
+denote-tasks list --overdue          # List overdue tasks
+denote-tasks list --sort priority    # Sort by priority
 ```
 
 ### task update
@@ -83,7 +86,7 @@ denote-tasks task list --sort priority    # Sort by priority
 Update task metadata. **Note**: Options must come before task IDs.
 
 ```bash
-denote-tasks task update [options] <task-ids>
+denote-tasks update [options] <task-ids>
 ```
 
 Options:
@@ -102,10 +105,10 @@ Task IDs support:
 
 Examples:
 ```bash
-denote-tasks task update -p p2 28                # Change priority
-denote-tasks task update --due "next week" 35    # Set due date
-denote-tasks task update --status paused 28,35   # Pause multiple tasks
-denote-tasks task update --area personal 10-15   # Update area for range
+denote-tasks update -p p2 28                # Change priority
+denote-tasks update --due "next week" 35    # Set due date
+denote-tasks update --status paused 28,35   # Pause multiple tasks
+denote-tasks update --area personal 10-15   # Update area for range
 ```
 
 ### task done
@@ -113,14 +116,14 @@ denote-tasks task update --area personal 10-15   # Update area for range
 Mark tasks as done.
 
 ```bash
-denote-tasks task done <task-ids>
+denote-tasks done <task-ids>
 ```
 
 Examples:
 ```bash
-denote-tasks task done 28           # Mark single task as done
-denote-tasks task done 28,35,61     # Mark multiple tasks as done
-denote-tasks task done 10-15        # Mark range as done
+denote-tasks done 28           # Mark single task as done
+denote-tasks done 28,35,61     # Mark multiple tasks as done
+denote-tasks done 10-15        # Mark range as done
 ```
 
 ### task log
@@ -128,13 +131,13 @@ denote-tasks task done 10-15        # Mark range as done
 Add a timestamped log entry to a task.
 
 ```bash
-denote-tasks task log <task-id> <message>
+denote-tasks log <task-id> <message>
 ```
 
 Examples:
 ```bash
-denote-tasks task log 28 "Discussed with team, waiting for feedback"
-denote-tasks task log 35 "Completed first draft"
+denote-tasks log 28 "Discussed with team, waiting for feedback"
+denote-tasks log 35 "Completed first draft"
 ```
 
 ### task edit (not implemented)
@@ -142,7 +145,7 @@ denote-tasks task log 35 "Completed first draft"
 Edit task in external editor or TUI.
 
 ```bash
-denote-tasks task edit <task-id>
+denote-tasks edit <task-id>
 ```
 
 ### task delete (not implemented)
@@ -150,7 +153,7 @@ denote-tasks task edit <task-id>
 Delete tasks with confirmation.
 
 ```bash
-denote-tasks task delete <task-ids>
+denote-tasks delete <task-ids>
 ```
 
 ## Project Commands (not implemented)
@@ -175,9 +178,9 @@ denote-tasks note tag [options] <note-ids>
 
 For compatibility with the old CLI:
 
-- `denote-tasks add` → `denote-tasks task new`
-- `denote-tasks list` → `denote-tasks task list`
-- `denote-tasks done` → `denote-tasks task done`
+- `denote-tasks add` → `denote-tasks new`
+- `denote-tasks list` → `denote-tasks list`
+- `denote-tasks done` → `denote-tasks done`
 
 ## TUI Launch Examples
 
@@ -204,41 +207,41 @@ denote-tasks --area work task list
 denote-tasks --area personal task list -p p1
 
 # The global --area flag works with any command
-denote-tasks --area work task done 28,35
+denote-tasks --area work done 28,35
 ```
 
 ### Daily workflow
 
 ```bash
 # Check what's due today
-denote-tasks task list --overdue
-denote-tasks task list --soon
+denote-tasks list --overdue
+denote-tasks list --soon
 
 # Add a new urgent task
-denote-tasks task new -p p1 --due today "Fix critical bug"
+denote-tasks new -p p1 --due today "Fix critical bug"
 
 # Update task priority after meeting
-denote-tasks task update -p p2 28
+denote-tasks update -p p2 28
 
 # Log progress
-denote-tasks task log 28 "Found root cause, working on fix"
+denote-tasks log 28 "Found root cause, working on fix"
 
 # Mark completed
-denote-tasks task done 28
+denote-tasks done 28
 ```
 
 ### Bulk operations
 
 ```bash
 # Update multiple tasks to a project
-denote-tasks task update --project 20240315T093000 28,35,61
+denote-tasks update --project 20240315T093000 28,35,61
 
 # Mark a range as done
-denote-tasks task done 10-15
+denote-tasks done 10-15
 
 # Change area for all personal tasks
-denote-tasks task list --area personal  # See the IDs
-denote-tasks task update --area home 4,7,12-15,23
+denote-tasks list --area personal  # See the IDs
+denote-tasks update --area home 4,7,12-15,23
 ```
 
 ## Tips
@@ -246,8 +249,8 @@ denote-tasks task update --area home 4,7,12-15,23
 1. **Index IDs are stable**: The number shown (e.g., 28) is the task's permanent ID, not its position in the list.
 
 2. **Flags before IDs**: Due to Go's flag parsing, options must come before task IDs:
-   - ✓ `denote-tasks task update -p p1 28`
-   - ✗ `denote-tasks task update 28 -p p1`
+   - ✓ `denote-tasks update -p p1 28`
+   - ✗ `denote-tasks update 28 -p p1`
 
 3. **Natural date parsing**: The `--due` flag accepts natural language:
    - `today`, `tomorrow`, `next week`
@@ -256,6 +259,6 @@ denote-tasks task update --area home 4,7,12-15,23
 
 4. **Filtering is additive**: Multiple filters work together:
    ```bash
-   denote-tasks task list -p p1 --area work --soon
+   denote-tasks list -p p1 --area work --soon
    ```
    Shows only p1 work tasks due soon.
