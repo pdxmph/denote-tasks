@@ -165,22 +165,6 @@ denote-tasks project update [options] <project-ids>
 denote-tasks project archive <project-ids>
 ```
 
-## Note Commands (not implemented)
-
-```bash
-denote-tasks note new <title>
-denote-tasks note list [options]
-denote-tasks note search <query>
-denote-tasks note tag [options] <note-ids>
-```
-
-## Legacy Command Aliases
-
-For compatibility with the old CLI:
-
-- `denote-tasks add` → `denote-tasks new`
-- `denote-tasks list` → `denote-tasks list`
-- `denote-tasks done` → `denote-tasks done`
 
 ## TUI Launch Examples
 
