@@ -557,11 +557,19 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Load current tags from disk
 				if file.IsTask() {
 					if task, err := denote.ParseTaskFile(file.Path); err == nil {
-						// Filter out system tags
+						// Filter out system tags from metadata
 						var userTags []string
 						for _, tag := range task.TaskMetadata.Tags {
 							if tag != "task" && tag != "project" {
 								userTags = append(userTags, tag)
+							}
+						}
+						// If no metadata tags, fall back to filename tags
+						if len(userTags) == 0 && len(file.Tags) > 0 {
+							for _, tag := range file.Tags {
+								if tag != "task" && tag != "project" {
+									userTags = append(userTags, tag)
+								}
 							}
 						}
 						if len(userTags) > 0 {
@@ -574,11 +582,19 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 				} else if file.IsProject() {
 					if project, err := denote.ParseProjectFile(file.Path); err == nil {
-						// Filter out system tags
+						// Filter out system tags from metadata
 						var userTags []string
 						for _, tag := range project.ProjectMetadata.Tags {
 							if tag != "task" && tag != "project" {
 								userTags = append(userTags, tag)
+							}
+						}
+						// If no metadata tags, fall back to filename tags
+						if len(userTags) == 0 && len(file.Tags) > 0 {
+							for _, tag := range file.Tags {
+								if tag != "task" && tag != "project" {
+									userTags = append(userTags, tag)
+								}
 							}
 						}
 						if len(userTags) > 0 {

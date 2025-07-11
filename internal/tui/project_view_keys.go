@@ -207,6 +207,14 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					userTags = append(userTags, tag)
 				}
 			}
+			// If no metadata tags, fall back to filename tags
+			if len(userTags) == 0 && m.viewingFile != nil && len(m.viewingFile.Tags) > 0 {
+				for _, tag := range m.viewingFile.Tags {
+					if tag != "task" && tag != "project" {
+						userTags = append(userTags, tag)
+					}
+				}
+			}
 			if len(userTags) > 0 {
 				m.editBuffer = strings.Join(userTags, " ")
 			} else {

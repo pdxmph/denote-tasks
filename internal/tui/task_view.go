@@ -177,15 +177,29 @@ func (m Model) renderTaskDetails() string {
 		lines = append(lines, m.renderFieldWithHotkey("Estimate", "", "not set", "t"))
 	}
 	
-	// Tags (editable)
+	// Tags (editable) - filter out system tags
 	tagsDisplay := ""
-	if len(meta.Tags) > 0 {
-		tagsDisplay = strings.Join(meta.Tags, " ")
-	} else if len(task.File.Tags) > 0 {
-		// Show file tags if no metadata tags
-		tagsDisplay = strings.Join(task.File.Tags, " ") + " (from filename)"
+	var displayTags []string
+	
+	// First check metadata tags
+	for _, tag := range meta.Tags {
+		if tag != "task" && tag != "project" {
+			displayTags = append(displayTags, tag)
+		}
+	}
+	
+	if len(displayTags) > 0 {
+		tagsDisplay = strings.Join(displayTags, " ")
 	} else {
-		tagsDisplay = ""
+		// Fall back to filename tags if no metadata tags
+		for _, tag := range task.File.Tags {
+			if tag != "task" && tag != "project" {
+				displayTags = append(displayTags, tag)
+			}
+		}
+		if len(displayTags) > 0 {
+			tagsDisplay = strings.Join(displayTags, " ") + " (from filename)"
+		}
 	}
 	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
 	
@@ -264,15 +278,29 @@ func (m Model) renderProjectDetails() string {
 		lines = append(lines, m.renderFieldWithHotkey("Area", "", "not set", "a"))
 	}
 	
-	// Tags (editable)
+	// Tags (editable) - filter out system tags
 	tagsDisplay := ""
-	if len(meta.Tags) > 0 {
-		tagsDisplay = strings.Join(meta.Tags, " ")
-	} else if len(project.File.Tags) > 0 {
-		// Show file tags if no metadata tags
-		tagsDisplay = strings.Join(project.File.Tags, " ") + " (from filename)"
+	var displayTags []string
+	
+	// First check metadata tags
+	for _, tag := range meta.Tags {
+		if tag != "task" && tag != "project" {
+			displayTags = append(displayTags, tag)
+		}
+	}
+	
+	if len(displayTags) > 0 {
+		tagsDisplay = strings.Join(displayTags, " ")
 	} else {
-		tagsDisplay = ""
+		// Fall back to filename tags if no metadata tags
+		for _, tag := range project.File.Tags {
+			if tag != "task" && tag != "project" {
+				displayTags = append(displayTags, tag)
+			}
+		}
+		if len(displayTags) > 0 {
+			tagsDisplay = strings.Join(displayTags, " ") + " (from filename)"
+		}
 	}
 	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
 	
