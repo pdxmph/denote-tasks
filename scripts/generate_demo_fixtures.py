@@ -169,8 +169,10 @@ def create_project_file(project, index, base_dir):
     
     # Create filename
     slug = title_to_slug(project["title"])
-    tags_part = "_".join(project["tags"])
-    filename = f"{denote_id}--{slug}_{tags_part}.md"
+    # Ensure 'project' tag is in the filename
+    file_tags = project["tags"] if "project" in project["tags"] else ["project"] + project["tags"]
+    tags_part = "_".join(file_tags)
+    filename = f"{denote_id}--{slug}__{tags_part}.md"
     
     # Create frontmatter
     due_date = format_date(project["due_date"]) if project.get("due_date") else ""
@@ -209,7 +211,7 @@ tags:
     with open(filepath, 'w') as f:
         f.write(content)
     
-    return index, filename
+    return denote_id, filename  # Return denote_id instead of index
 
 def create_task_file(task_data, task_index, base_dir, project_map):
     """Create a task file."""
@@ -217,13 +219,14 @@ def create_task_file(task_data, task_index, base_dir, project_map):
     id_offset = task_index * 30  # 30 minutes apart
     denote_id = generate_denote_id(id_offset)
     
-    # Build tags list
-    tags = ["task"] + task_data.get("tags", [])
+    # Build tags list - 'task' must be included for both filename and metadata
+    user_tags = task_data.get("tags", [])
+    file_tags = ["task"] + user_tags
     
-    # Create filename
+    # Create filename with double underscore before tags
     slug = title_to_slug(task_data["title"])
-    tags_part = "_".join(tags)
-    filename = f"{denote_id}--{slug}_{tags_part}.md"
+    tags_part = "_".join(file_tags)
+    filename = f"{denote_id}--{slug}__{tags_part}.md"
     
     # Determine status
     status = task_data.get("status", "open")
@@ -237,8 +240,8 @@ def create_task_file(task_data, task_index, base_dir, project_map):
     
     # Get project ID if assigned
     project_id = ""
-    if "project" in task_data:
-        project_id = str(100 + task_data["project"])
+    if "project" in task_data and task_data["project"] in project_map:
+        project_id = project_map[task_data["project"]]
     
     # Random area if not specified
     area = task_data.get("area", random.choice(["work", "personal"]))
@@ -254,7 +257,7 @@ project_id: {project_id}
 due_date: "{due_date}"
 estimate: {task_data.get("estimate", 0)}
 tags:
-{chr(10).join(f"  - {tag}" for tag in tags)}
+{chr(10).join(f"  - {tag}" for tag in file_tags)}
 ---
 
 ## Task Description
@@ -295,8 +298,8 @@ def main():
     # Create projects
     project_map = {}
     for i, project in enumerate(PROJECTS):
-        proj_id, filename = create_project_file(project, i, output_dir)
-        project_map[i] = proj_id
+        denote_id, filename = create_project_file(project, i, output_dir)
+        project_map[i] = denote_id  # Map index to denote ID
         print(f"  Created project: {filename}")
     
     # Create tasks

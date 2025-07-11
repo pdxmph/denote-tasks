@@ -14,12 +14,12 @@ from pathlib import Path
 
 def parse_denote_filename(filename):
     """Parse a Denote filename to extract tags."""
-    # Pattern: ID--TITLE__TAG1__TAG2.md
-    match = re.match(r'^(\d{8}T\d{6})--([^_]+)(__(.+?))?\.md$', filename)
+    # Pattern: ID--TITLE__TAG1_TAG2.md (double underscore before tags, single between)
+    match = re.match(r'^(\d{8}T\d{6})--([^_]+)__(.+?)\.md$', filename)
     if match:
-        tags_part = match.group(4)
+        tags_part = match.group(3)
         if tags_part:
-            return tags_part.split('__')
+            return tags_part.split('_')
     return []
 
 def read_frontmatter(filepath):
