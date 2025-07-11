@@ -1368,33 +1368,73 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if file.IsTask() {
 				// Load fresh metadata from disk
 				if t, err := denote.ParseTaskFile(file.Path); err == nil {
+					oldPath := file.Path
 					t.TaskMetadata.Tags = newTags
+					
+					// First update the metadata
 					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
-						if len(newTags) == 0 {
-							m.statusMsg = "Tags cleared"
-						} else {
-							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
+						// Now rename the file to reflect new tags
+						allTags := []string{"task"} // Always include task tag
+						for _, tag := range newTags {
+							if tag != "task" {
+								allTags = append(allTags, tag)
+							}
 						}
-						// Force UI to refresh
-						m.loadVisibleMetadata()
+						
+						// Rename file
+						newPath, err := denote.RenameFileForTags(oldPath, allTags)
+						if err != nil {
+							m.statusMsg = fmt.Sprintf("Tags updated but rename failed: %v", err)
+						} else {
+							if len(newTags) == 0 {
+								m.statusMsg = "Tags cleared"
+							} else {
+								m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
+							}
+							
+							// Trigger a rescan if the file was renamed
+							if newPath != oldPath {
+								m.scanFiles()
+							}
+						}
 					}
 				}
 			} else if file.IsProject() {
 				// Load fresh metadata from disk
 				if project, err := denote.ParseProjectFile(file.Path); err == nil {
+					oldPath := file.Path
 					project.ProjectMetadata.Tags = newTags
+					
+					// First update the metadata
 					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
-						if len(newTags) == 0 {
-							m.statusMsg = "Tags cleared"
-						} else {
-							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
+						// Now rename the file to reflect new tags
+						allTags := []string{"project"} // Always include project tag
+						for _, tag := range newTags {
+							if tag != "project" {
+								allTags = append(allTags, tag)
+							}
 						}
-						// Force UI to refresh
-						m.loadVisibleMetadata()
+						
+						// Rename file
+						newPath, err := denote.RenameFileForTags(oldPath, allTags)
+						if err != nil {
+							m.statusMsg = fmt.Sprintf("Tags updated but rename failed: %v", err)
+						} else {
+							if len(newTags) == 0 {
+								m.statusMsg = "Tags cleared"
+							} else {
+								m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
+							}
+							
+							// Trigger a rescan if the file was renamed
+							if newPath != oldPath {
+								m.scanFiles()
+							}
+						}
 					}
 				}
 			}
