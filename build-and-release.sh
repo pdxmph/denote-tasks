@@ -140,28 +140,29 @@ class DenoteTasks < Formula
   version "${VERSION#v}"
   license "MIT"
   
-  # Build from source by default
-  url "${SOURCE_URL}"
-  sha256 "${SOURCE_SHA}"
-  
-  # Binary releases for faster installation
+  # Use binary release for ARM64 Macs
   if OS.mac? && Hardware::CPU.arm?
     url "https://github.com/pdxmph/denote-tasks/releases/download/${VERSION}/${ARCHIVE_NAME}"
     sha256 "${BINARY_SHA}"
+  else
+    # Fall back to building from source
+    url "${SOURCE_URL}"
+    sha256 "${SOURCE_SHA}"
+    depends_on "go" => :build
   end
   
-  depends_on "go" => :build if build.from_source?
   depends_on arch: :arm64  # Currently only ARM64 builds available
 
   def install
-    if build.from_source?
+    if File.exist?("go.mod")
+      # Building from source
       system "go", "build", *std_go_args(ldflags: "-s -w")
       
       # Install completions from source
       bash_completion.install "completions/denote-tasks.bash"
       zsh_completion.install "completions/_denote-tasks"
     else
-      # Install pre-built binary
+      # Installing pre-built binary
       bin.install "denote-tasks"
       
       # Install completions from binary archive
