@@ -200,8 +200,15 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "g":
 		if m.projectViewTab == 0 {
 			m.editingField = "g"  // Use single letter
-			if len(m.viewingProject.ProjectMetadata.Tags) > 0 {
-				m.editBuffer = strings.Join(m.viewingProject.ProjectMetadata.Tags, " ")
+			// Filter out system tags
+			var userTags []string
+			for _, tag := range m.viewingProject.ProjectMetadata.Tags {
+				if tag != "task" && tag != "project" {
+					userTags = append(userTags, tag)
+				}
+			}
+			if len(userTags) > 0 {
+				m.editBuffer = strings.Join(userTags, " ")
 			} else {
 				m.editBuffer = ""
 			}

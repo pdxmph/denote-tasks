@@ -724,11 +724,15 @@ func (m *Model) updateTaskField(field, value string) error {
 			fmt.Sscanf(value, "%d", &est)
 			taskMeta.Estimate = est
 		case "tags":
-			// Split by spaces
-			if value == "" {
-				taskMeta.Tags = []string{}
-			} else {
-				taskMeta.Tags = strings.Fields(value)
+			// Split by spaces and ensure "task" tag is always present
+			taskMeta.Tags = []string{"task"}
+			if value != "" {
+				userTags := strings.Fields(value)
+				for _, tag := range userTags {
+					if tag != "project" && tag != "task" {
+						taskMeta.Tags = append(taskMeta.Tags, tag)
+					}
+				}
 			}
 		}
 		
@@ -827,11 +831,15 @@ func (m *Model) updateProjectField(field, value string) error {
 		case "area":
 			projectMeta.Area = value
 		case "tags":
-			// Split by spaces
-			if value == "" {
-				projectMeta.Tags = []string{}
-			} else {
-				projectMeta.Tags = strings.Fields(value)
+			// Split by spaces and ensure "project" tag is always present
+			projectMeta.Tags = []string{"project"}
+			if value != "" {
+				userTags := strings.Fields(value)
+				for _, tag := range userTags {
+					if tag != "project" && tag != "task" {
+						projectMeta.Tags = append(projectMeta.Tags, tag)
+					}
+				}
 			}
 		}
 		

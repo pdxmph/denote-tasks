@@ -229,11 +229,31 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		
 	case "g":
 		m.editingField = "tags"
-		// Pre-fill with current tags
-		if m.viewingTask != nil && len(m.viewingTask.TaskMetadata.Tags) > 0 {
-			m.editBuffer = strings.Join(m.viewingTask.TaskMetadata.Tags, " ")
-		} else if m.viewingProject != nil && len(m.viewingProject.ProjectMetadata.Tags) > 0 {
-			m.editBuffer = strings.Join(m.viewingProject.ProjectMetadata.Tags, " ")
+		// Pre-fill with current tags, filtering out system tags
+		if m.viewingTask != nil {
+			var userTags []string
+			for _, tag := range m.viewingTask.TaskMetadata.Tags {
+				if tag != "task" && tag != "project" {
+					userTags = append(userTags, tag)
+				}
+			}
+			if len(userTags) > 0 {
+				m.editBuffer = strings.Join(userTags, " ")
+			} else {
+				m.editBuffer = ""
+			}
+		} else if m.viewingProject != nil {
+			var userTags []string
+			for _, tag := range m.viewingProject.ProjectMetadata.Tags {
+				if tag != "task" && tag != "project" {
+					userTags = append(userTags, tag)
+				}
+			}
+			if len(userTags) > 0 {
+				m.editBuffer = strings.Join(userTags, " ")
+			} else {
+				m.editBuffer = ""
+			}
 		} else {
 			m.editBuffer = ""
 		}

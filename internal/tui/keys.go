@@ -556,14 +556,36 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.editingField = "T"
 				// Load current tags from disk
 				if file.IsTask() {
-					if task, err := denote.ParseTaskFile(file.Path); err == nil && len(task.TaskMetadata.Tags) > 0 {
-						m.editBuffer = strings.Join(task.TaskMetadata.Tags, " ")
+					if task, err := denote.ParseTaskFile(file.Path); err == nil {
+						// Filter out system tags
+						var userTags []string
+						for _, tag := range task.TaskMetadata.Tags {
+							if tag != "task" && tag != "project" {
+								userTags = append(userTags, tag)
+							}
+						}
+						if len(userTags) > 0 {
+							m.editBuffer = strings.Join(userTags, " ")
+						} else {
+							m.editBuffer = ""
+						}
 					} else {
 						m.editBuffer = ""
 					}
 				} else if file.IsProject() {
-					if project, err := denote.ParseProjectFile(file.Path); err == nil && len(project.ProjectMetadata.Tags) > 0 {
-						m.editBuffer = strings.Join(project.ProjectMetadata.Tags, " ")
+					if project, err := denote.ParseProjectFile(file.Path); err == nil {
+						// Filter out system tags
+						var userTags []string
+						for _, tag := range project.ProjectMetadata.Tags {
+							if tag != "task" && tag != "project" {
+								userTags = append(userTags, tag)
+							}
+						}
+						if len(userTags) > 0 {
+							m.editBuffer = strings.Join(userTags, " ")
+						} else {
+							m.editBuffer = ""
+						}
 					} else {
 						m.editBuffer = ""
 					}
@@ -1369,7 +1391,9 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Load fresh metadata from disk
 				if t, err := denote.ParseTaskFile(file.Path); err == nil {
 					oldPath := file.Path
-					t.TaskMetadata.Tags = newTags
+					// Always include "task" in metadata tags
+					t.TaskMetadata.Tags = []string{"task"}
+					t.TaskMetadata.Tags = append(t.TaskMetadata.Tags, newTags...)
 					
 					// First update the metadata
 					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
@@ -1405,7 +1429,9 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Load fresh metadata from disk
 				if project, err := denote.ParseProjectFile(file.Path); err == nil {
 					oldPath := file.Path
-					project.ProjectMetadata.Tags = newTags
+					// Always include "project" in metadata tags
+					project.ProjectMetadata.Tags = []string{"project"}
+					project.ProjectMetadata.Tags = append(project.ProjectMetadata.Tags, newTags...)
 					
 					// First update the metadata
 					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
