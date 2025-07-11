@@ -216,8 +216,10 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if len(m.createDue) > 0 {
 				m.createDue = m.createDue[:len(m.createDue)-1]
 			}
-		case 3: // Area (only if not filtered)
-			// Skip - area is inherited from filter
+		case 3: // Area
+			if len(m.createArea) > 0 {
+				m.createArea = m.createArea[:len(m.createArea)-1]
+			}
 		case 4: // Project
 			// Skip - project is selected via project selection mode
 		case 5: // Estimate
@@ -240,8 +242,8 @@ func (m Model) handleCreateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.createPriority += msg.String()
 			case 2: // Due Date
 				m.createDue += msg.String()
-			case 3: // Area (only if not filtered)
-				// Skip - area is inherited from filter
+			case 3: // Area
+				m.createArea += msg.String()
 			case 4: // Project
 				// Skip - project is selected via project selection mode
 			case 5: // Estimate

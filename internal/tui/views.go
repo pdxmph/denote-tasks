@@ -711,7 +711,7 @@ func (m Model) renderCreate() string {
 		{"Title", m.createTitle, "required"},
 		{"Priority", m.createPriority, "p1, p2, p3"},
 		{"Due Date", m.createDue, "YYYY-MM-DD or natural language"},
-		{"Area", m.areaFilter, "inherited from filter"},
+		{"Area", m.createArea, "life context"},
 		{"Project", projectDisplay, projectHint},
 		{"Estimate", m.createEstimate, "time estimate"},
 		{"Tags", m.createTags, "space-separated"},

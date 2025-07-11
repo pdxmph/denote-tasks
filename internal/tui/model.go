@@ -54,6 +54,7 @@ type Model struct {
 	createDue      string
 	createEstimate string
 	createProject  string
+	createArea     string
 	createField    int // Which field is being edited in create mode
 	creatingFromProject bool // whether task creation was initiated from project view
 	
@@ -479,6 +480,7 @@ func (m *Model) resetCreateFields() {
 	m.createDue = ""
 	m.createEstimate = ""
 	m.createProject = ""
+	m.createArea = m.areaFilter
 	m.createField = 0
 }
 
@@ -512,7 +514,7 @@ func (m Model) createTask() tea.Cmd {
 		}
 		
 		// Create the task
-		newTask, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.areaFilter)
+		newTask, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.createArea)
 		if err != nil {
 			return err
 		}
@@ -601,7 +603,7 @@ func (m Model) create() tea.Cmd {
 			return projectCreatedMsg{path: project.File.Path}
 		} else {
 			// Create a task
-			task, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.areaFilter)
+			task, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.createArea)
 			if err != nil {
 				return err
 			}
