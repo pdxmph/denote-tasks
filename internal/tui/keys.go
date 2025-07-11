@@ -123,7 +123,7 @@ func (m Model) handlePreviewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeNormal
 		m.previewFile = nil
 		
-	case "e":
+	case "E":
 		if m.config.Editor != "" && m.previewFile != nil {
 			return m, m.editFile(m.previewFile.Path)
 		}
@@ -420,8 +420,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		}
 		
-	case "e":
-		// Edit task in external editor
+	case "E":
+		// Edit task in external editor (uppercase for Edit action)
 		if m.config.Editor != "" && m.cursor < len(m.filtered) {
 			file := m.filtered[m.cursor]
 			return m, m.editFile(file.Path)
@@ -547,13 +547,13 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-	case "T":
-		// Edit tags
+	case "t":
+		// Edit tags (lowercase for action)
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
 			file := m.filtered[m.cursor]
 			if file.IsTask() || file.IsProject() {
 				m.mode = ModeTagsEdit
-				m.editingField = "T"
+				m.editingField = "t"
 				// Load current tags from disk
 				if file.IsTask() {
 					if task, err := denote.ParseTaskFile(file.Path); err == nil {
@@ -610,8 +610,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-	case "p":
-		// Toggle project filter
+	case "P":
+		// Toggle project filter (uppercase for filter)
 		m.projectFilter = !m.projectFilter
 		if m.projectFilter {
 			m.statusMsg = "Showing projects only"
@@ -627,8 +627,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.sortFiles()
 		m.loadVisibleMetadata()
 		
-	case "t":
-		// Go to task list (opposite of 'p' for projects)
+	case "T":
+		// Go to task list (opposite of 'P' for projects, uppercase for filter)
 		if m.projectFilter {
 			// Currently in project list, switch to task list
 			m.projectFilter = false

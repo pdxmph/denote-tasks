@@ -162,8 +162,8 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.loadVisibleMetadata()
 		}
 		
-	case "e":
-		// Edit in external editor
+	case "E":
+		// Edit in external editor (uppercase for Edit action)
 		if m.config.Editor != "" && m.viewingFile != nil {
 			return m, m.editFile(m.viewingFile.Path)
 		}
@@ -205,7 +205,8 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.editCursor = 0
 		m.statusMsg = "Enter area (work/personal/etc):"
 		
-	case "t":
+	case "e":
+		// Estimate field (lowercase for action)
 		if m.viewingTask != nil {
 			m.editingField = "estimate"
 			m.editBuffer = ""
@@ -227,7 +228,8 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-	case "g":
+	case "t":
+		// Tags field (lowercase for action)
 		m.editingField = "tags"
 		// Pre-fill with current tags, filtering out system tags
 		if m.viewingTask != nil {

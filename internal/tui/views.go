@@ -576,11 +576,11 @@ func (m Model) renderFooter() string {
 			"c:create project",
 			"0-3:priority",
 			"d:due date",
-			"T:tags",
+			"t:tags",
 			"x:delete",
-			"e:edit",
+			"E:edit",
 			"f:filter",
-			"t:tasks",
+			"T:tasks",
 			"S:sort",
 			"?:help",
 			"q:quit",
@@ -595,12 +595,12 @@ func (m Model) renderFooter() string {
 			"0-3:priority",
 			"s:state",
 			"d:due date",
-			"T:tags",
+			"t:tags",
 			"x:delete",
-			"e:edit",
+			"E:edit",
 			"l:log",
 			"f:filter",
-			"p:projects",
+			"P:projects",
 			"S:sort",
 			"?:help",
 			"q:quit",
@@ -620,22 +620,28 @@ Navigation:
   gg      Go to top
   G       Go to bottom
 
-Task Actions:
-  Enter   Preview task
-  c       Create new task (full form with metadata)
+Actions (lowercase):
+  Enter   Open task/project details
+  c       Create new task/project
+  d       Edit due date
+  l       Add log entry (tasks only)
+  r       Toggle sort order
+  s       Change task state (open/done/etc)
+  t       Edit tags
+  u       Update task metadata
+  x       Delete task/project
+  /       Fuzzy search (use #tag for tag search)
+
+Priority:
   0       Clear priority
   1/2/3   Set priority (p1/p2/p3)
-  s       Change task state (open/done/etc)
-  x       Delete task/project
-  e       Edit task in external editor
-  u       Update task metadata
-  l       Add log entry to task
-  /       Fuzzy search (use #tag for tag search)
+
+Filters & Views (uppercase):
+  E       Edit in external editor
+  P       Toggle projects view
+  T       Toggle tasks view
+  S       Sort options menu
   f       Filter menu (area/priority/state/soon)
-  p       Switch to projects view
-  t       Switch to tasks view
-  S       Sort options menu (uppercase S)
-  r       Toggle sort order
   
 Other:
   ?       Toggle this help

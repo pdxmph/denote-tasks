@@ -97,7 +97,7 @@ func (m Model) renderProjectMain() string {
 	var lines []string
 	
 	// Project metadata (similar to task view)
-	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", "t"))
+	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", "T"))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -167,7 +167,7 @@ func (m Model) renderProjectMain() string {
 	} else {
 		tagsDisplay = "(not set)"
 	}
-	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
+	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "t"))
 	
 	// Other metadata
 	if meta.StartDate != "" {
@@ -374,7 +374,7 @@ func (m Model) getProjectViewHints() []string {
 	hints := []string{
 		"tab:switch tabs",
 		"q/esc:back",
-		"e:edit file",
+		"E:edit file",
 		"n:new task",
 	}
 	
@@ -382,12 +382,12 @@ func (m Model) getProjectViewHints() []string {
 		// Main tab (metadata + tasks) hints
 		// Metadata editing hints
 		hints = append(hints,
-			"t:title",
+			"T:title",
 			"p:priority",
 			"s:status",
 			"d:due date",
 			"a:area",
-			"g:tags",
+			"t:tags",
 		)
 		// Task list hints (if there are tasks)
 		if len(m.projectTasks) > 0 {

@@ -92,17 +92,17 @@ func (m Model) renderTaskView() string {
 	// Footer with hints
 	hints := []string{
 		"q/esc:back",
-		"e:edit file",
+		"E:edit file",
 		"p:priority",
 		"s:status",
 		"d:due date",
 		"a:area",
-		"g:tags",
+		"t:tags",
 		"r:rename",
 	}
 	if m.viewingTask != nil {
 		hints = append(hints, "j:project")
-		hints = append(hints, "t:estimate")
+		hints = append(hints, "e:estimate")
 		hints = append(hints, "l:log")
 	}
 	footer := "\n" + hintStyle.Render(strings.Join(hints, " • "))
@@ -118,7 +118,7 @@ func (m Model) renderTaskDetails() string {
 	var lines []string
 	
 	// Title
-	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", ""))
+	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", "T"))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -172,9 +172,9 @@ func (m Model) renderTaskDetails() string {
 	
 	// Time Estimate
 	if meta.Estimate > 0 {
-		lines = append(lines, m.renderFieldWithHotkey("Estimate", fmt.Sprintf("%d", meta.Estimate), "not set", "t"))
+		lines = append(lines, m.renderFieldWithHotkey("Estimate", fmt.Sprintf("%d", meta.Estimate), "not set", "e"))
 	} else {
-		lines = append(lines, m.renderFieldWithHotkey("Estimate", "", "not set", "t"))
+		lines = append(lines, m.renderFieldWithHotkey("Estimate", "", "not set", "e"))
 	}
 	
 	// Tags (editable) - filter out system tags
@@ -201,7 +201,7 @@ func (m Model) renderTaskDetails() string {
 			tagsDisplay = strings.Join(displayTags, " ") + " (from filename)"
 		}
 	}
-	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
+	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "t"))
 	
 	// Other metadata
 	if meta.StartDate != "" {
@@ -248,7 +248,7 @@ func (m Model) renderProjectDetails() string {
 	var lines []string
 	
 	// Title
-	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "not set", ""))
+	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "not set", "T"))
 	
 	// Status
 	statusValue := meta.Status
@@ -302,7 +302,7 @@ func (m Model) renderProjectDetails() string {
 			tagsDisplay = strings.Join(displayTags, " ") + " (from filename)"
 		}
 	}
-	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
+	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "t"))
 	
 	// Other metadata
 	if meta.StartDate != "" {

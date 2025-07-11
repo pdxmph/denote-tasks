@@ -22,12 +22,12 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			// Handle project field updates - map single letters to field names
 			fieldMap := map[string]string{
-				"t": "title",
+				"T": "title",
 				"p": "priority",
 				"s": "status",
 				"d": "due_date",
 				"a": "area",
-				"g": "tags",
+				"t": "tags",
 			}
 			
 			if fieldName, ok := fieldMap[m.editingField]; ok {
@@ -144,8 +144,8 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.projectViewTab = 0
 		}
 		
-	case "e":
-		// Edit project file in external editor
+	case "E":
+		// Edit project file in external editor (uppercase for Edit action)
 		if m.config.Editor != "" && m.viewingFile != nil {
 			return m, m.editFile(m.viewingFile.Path)
 		} else {
@@ -153,9 +153,10 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 	// Field edit hotkeys - work on overview tab
-	case "t":
+	case "T":
+		// Title field (uppercase - different from tags)
 		if m.projectViewTab == 0 {
-			m.editingField = "t"  // Title
+			m.editingField = "T"  // Title
 			m.editBuffer = m.viewingProject.ProjectMetadata.Title
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter title:"
@@ -197,9 +198,10 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Enter area:"
 		}
 		
-	case "g":
+	case "t":
+		// Tags field (lowercase for action)
 		if m.projectViewTab == 0 {
-			m.editingField = "g"  // Use single letter
+			m.editingField = "t"  // Tags
 			// Filter out system tags
 			var userTags []string
 			for _, tag := range m.viewingProject.ProjectMetadata.Tags {
