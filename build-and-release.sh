@@ -75,6 +75,11 @@ if [ -f ../LICENSE ]; then
     cp ../LICENSE .
     FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE LICENSE"
 fi
+# Include shell completions in the binary archive
+if [ -d ../completions ]; then
+    cp -r ../completions .
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE completions"
+fi
 tar czf "$ARCHIVE_NAME" $FILES_TO_ARCHIVE
 rm README.md
 if [ -f config.example.toml ]; then
@@ -82,6 +87,9 @@ if [ -f config.example.toml ]; then
 fi
 if [ -f LICENSE ]; then
     rm LICENSE
+fi
+if [ -d completions ]; then
+    rm -rf completions
 fi
 cd ..
 
@@ -109,9 +117,101 @@ fi
 echo -e "\n${GREEN}✅ Release $VERSION completed successfully!${NC}"
 echo -e "${GREEN}View at: https://github.com/pdxmph/denote-tasks/releases/tag/$VERSION${NC}"
 
+# Step 6: Update Homebrew formula
+echo -e "\n${YELLOW}Step 6: Updating Homebrew formula...${NC}"
+if [ -d "$HOME/code/homebrew-taps" ]; then
+    # Calculate SHA256 for source archive
+    SOURCE_URL="https://github.com/pdxmph/denote-tasks/archive/refs/tags/${VERSION}.tar.gz"
+    echo "Downloading source archive for SHA calculation..."
+    TEMP_SOURCE="/tmp/denote-tasks-source-${VERSION}.tar.gz"
+    curl -sL -o "$TEMP_SOURCE" "$SOURCE_URL"
+    SOURCE_SHA=$(shasum -a 256 "$TEMP_SOURCE" | cut -d' ' -f1)
+    rm -f "$TEMP_SOURCE"
+    
+    # Calculate SHA256 for binary archive
+    BINARY_SHA=$(shasum -a 256 "dist/$ARCHIVE_NAME" | cut -d' ' -f1)
+    
+    # Update or create the formula
+    FORMULA_PATH="$HOME/code/homebrew-taps/Formula/denote-tasks.rb"
+    cat > "$FORMULA_PATH" << EOF
+class DenoteTasks < Formula
+  desc "Task management tool using Denote file naming convention"
+  homepage "https://github.com/pdxmph/denote-tasks"
+  version "${VERSION#v}"
+  license "MIT"
+  
+  # Build from source by default
+  url "${SOURCE_URL}"
+  sha256 "${SOURCE_SHA}"
+  
+  # Binary releases for faster installation
+  if OS.mac? && Hardware::CPU.arm?
+    url "https://github.com/pdxmph/denote-tasks/releases/download/${VERSION}/${ARCHIVE_NAME}"
+    sha256 "${BINARY_SHA}"
+  end
+  
+  depends_on "go" => :build if build.from_source?
+  depends_on arch: :arm64  # Currently only ARM64 builds available
+
+  def install
+    if build.from_source?
+      system "go", "build", *std_go_args(ldflags: "-s -w")
+      
+      # Install completions from source
+      bash_completion.install "completions/denote-tasks.bash"
+      zsh_completion.install "completions/_denote-tasks"
+    else
+      # Install pre-built binary
+      bin.install "denote-tasks"
+      
+      # Install completions from binary archive
+      bash_completion.install "completions/denote-tasks.bash" if File.exist?("completions/denote-tasks.bash")
+      zsh_completion.install "completions/_denote-tasks" if File.exist?("completions/_denote-tasks")
+    end
+    
+    # Install documentation
+    doc.install "README.md" if File.exist?("README.md")
+  end
+
+  def caveats
+    <<~EOS
+      To use denote-tasks, create ~/.config/denote-tasks/config.toml with:
+
+        notes_directory = "~/tasks"
+        editor = "vim"  # or your preferred editor
+    EOS
+  end
+
+  test do
+    assert_match "denote-tasks", shell_output("#{bin}/denote-tasks --help 2>&1")
+  end
+end
+EOF
+    
+    echo -e "${GREEN}✅ Homebrew formula updated${NC}"
+    
+    # Commit and push the formula update
+    cd "$HOME/code/homebrew-taps"
+    git add "Formula/denote-tasks.rb"
+    git commit -m "denote-tasks ${VERSION}" || echo "No changes to commit"
+    git push || echo "Failed to push - you may need to push manually"
+    cd - > /dev/null
+    
+    echo -e "\n${YELLOW}Homebrew installation will be available after push completes:${NC}"
+    echo "  brew tap pdxmph/homebrew-taps  # if not already tapped"
+    echo "  brew install pdxmph/homebrew-taps/denote-tasks"
+else
+    echo -e "${YELLOW}Homebrew taps directory not found at ~/code/homebrew-taps${NC}"
+    echo "Skipping Homebrew formula update."
+fi
+
 # Show installation instructions
 echo -e "\n${YELLOW}Installation instructions:${NC}"
-echo "Download and install:"
+echo "Via Homebrew (recommended):"
+echo "  brew tap pdxmph/homebrew-taps"
+echo "  brew install pdxmph/homebrew-taps/denote-tasks"
+echo ""
+echo "Or manually:"
 echo "  curl -L https://github.com/pdxmph/denote-tasks/releases/download/$VERSION/$ARCHIVE_NAME | tar xz"
 echo "  sudo mv denote-tasks /usr/local/bin/"
 echo ""
