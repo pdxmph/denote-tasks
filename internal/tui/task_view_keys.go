@@ -15,6 +15,8 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.editingField = ""
 			m.editBuffer = ""
+			m.editCursor = 0
+			m.editCursor = 0
 			
 		case "enter":
 			// Save the field
@@ -98,15 +100,39 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.editingField = ""
 			m.editBuffer = ""
+			m.editCursor = 0
 			
 		case "backspace":
-			if len(m.editBuffer) > 0 {
-				m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+			if m.editCursor > 0 && len(m.editBuffer) > 0 {
+				m.editBuffer = m.editBuffer[:m.editCursor-1] + m.editBuffer[m.editCursor:]
+				m.editCursor--
 			}
+			
+		case "delete":
+			if m.editCursor < len(m.editBuffer) {
+				m.editBuffer = m.editBuffer[:m.editCursor] + m.editBuffer[m.editCursor+1:]
+			}
+			
+		case "left":
+			if m.editCursor > 0 {
+				m.editCursor--
+			}
+			
+		case "right":
+			if m.editCursor < len(m.editBuffer) {
+				m.editCursor++
+			}
+			
+		case "home":
+			m.editCursor = 0
+			
+		case "end":
+			m.editCursor = len(m.editBuffer)
 			
 		default:
 			if len(msg.String()) == 1 {
-				m.editBuffer += msg.String()
+				m.editBuffer = m.editBuffer[:m.editCursor] + msg.String() + m.editBuffer[m.editCursor:]
+				m.editCursor++
 			}
 		}
 		
@@ -154,11 +180,13 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "p":
 		m.editingField = "priority"
 		m.editBuffer = ""
+		m.editCursor = 0
 		m.statusMsg = "Enter priority (1/2/3):"
 		
 	case "s":
 		m.editingField = "status"
 		m.editBuffer = ""
+		m.editCursor = 0
 		if m.viewingTask != nil {
 			m.statusMsg = "Enter status (open/done/paused/delegated/dropped):"
 		} else {
@@ -168,17 +196,20 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		m.editingField = "due"
 		m.editBuffer = ""
+		m.editCursor = 0
 		m.statusMsg = "Enter due date (e.g. 2d, 1w, friday, jan 15, 2024-01-15):"
 		
 	case "a":
 		m.editingField = "area"
 		m.editBuffer = ""
+		m.editCursor = 0
 		m.statusMsg = "Enter area (work/personal/etc):"
 		
 	case "t":
 		if m.viewingTask != nil {
 			m.editingField = "estimate"
 			m.editBuffer = ""
+			m.editCursor = 0
 			m.statusMsg = "Enter time estimate (1/2/3/5/8/13):"
 		}
 		
@@ -206,6 +237,7 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.editBuffer = ""
 		}
+		m.editCursor = len(m.editBuffer)
 		m.statusMsg = "Enter tags (" + MsgSpaceSeparated + "):"
 		
 	case "r":

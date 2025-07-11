@@ -26,6 +26,11 @@ func NewFieldRenderer() *FieldRenderer {
 
 // RenderField renders a single field with consistent formatting
 func (fr *FieldRenderer) RenderField(label, value, emptyText string, isEditing bool, editBuffer string) string {
+	return fr.RenderFieldWithCursor(label, value, emptyText, isEditing, editBuffer, len(editBuffer))
+}
+
+// RenderFieldWithCursor renders a single field with cursor at specified position
+func (fr *FieldRenderer) RenderFieldWithCursor(label, value, emptyText string, isEditing bool, editBuffer string, cursor int) string {
 	displayValue := value
 	if value == "" {
 		displayValue = fr.emptyStyle.Render(emptyText)
@@ -34,7 +39,11 @@ func (fr *FieldRenderer) RenderField(label, value, emptyText string, isEditing b
 	}
 
 	if isEditing {
-		displayValue = fmt.Sprintf("%s█", editBuffer)
+		if cursor < len(editBuffer) {
+			displayValue = fmt.Sprintf("%s█%s", editBuffer[:cursor], editBuffer[cursor:])
+		} else {
+			displayValue = fmt.Sprintf("%s█", editBuffer)
+		}
 	}
 
 	return fmt.Sprintf("%s %s", 
@@ -45,8 +54,13 @@ func (fr *FieldRenderer) RenderField(label, value, emptyText string, isEditing b
 
 // RenderPriority renders priority with appropriate styling
 func (fr *FieldRenderer) RenderPriority(priority string, isEditing bool, editBuffer string) string {
+	return fr.RenderPriorityWithCursor(priority, isEditing, editBuffer, len(editBuffer))
+}
+
+// RenderPriorityWithCursor renders priority with cursor at specified position
+func (fr *FieldRenderer) RenderPriorityWithCursor(priority string, isEditing bool, editBuffer string, cursor int) string {
 	if isEditing {
-		return fr.RenderField("Priority", "", "none", true, editBuffer)
+		return fr.RenderFieldWithCursor("Priority", "", "none", true, editBuffer, cursor)
 	}
 
 	var style lipgloss.Style
@@ -69,8 +83,13 @@ func (fr *FieldRenderer) RenderPriority(priority string, isEditing bool, editBuf
 
 // RenderStatus renders status with appropriate symbol
 func (fr *FieldRenderer) RenderStatus(status string, isEditing bool, editBuffer string) string {
+	return fr.RenderStatusWithCursor(status, isEditing, editBuffer, len(editBuffer))
+}
+
+// RenderStatusWithCursor renders status with cursor at specified position
+func (fr *FieldRenderer) RenderStatusWithCursor(status string, isEditing bool, editBuffer string, cursor int) string {
 	if isEditing {
-		return fr.RenderField("Status", "", status, true, editBuffer)
+		return fr.RenderFieldWithCursor("Status", "", status, true, editBuffer, cursor)
 	}
 
 	symbol := StatusSymbolOpen
@@ -102,8 +121,13 @@ func (fr *FieldRenderer) RenderStatus(status string, isEditing bool, editBuffer 
 
 // RenderTags renders tags as a space-separated list
 func (fr *FieldRenderer) RenderTags(tags []string, isEditing bool, editBuffer string) string {
+	return fr.RenderTagsWithCursor(tags, isEditing, editBuffer, len(editBuffer))
+}
+
+// RenderTagsWithCursor renders tags with cursor at specified position
+func (fr *FieldRenderer) RenderTagsWithCursor(tags []string, isEditing bool, editBuffer string, cursor int) string {
 	if isEditing {
-		return fr.RenderField("Tags", "", "none", true, editBuffer)
+		return fr.RenderFieldWithCursor("Tags", "", "none", true, editBuffer, cursor)
 	}
 
 	if len(tags) == 0 {
@@ -115,8 +139,13 @@ func (fr *FieldRenderer) RenderTags(tags []string, isEditing bool, editBuffer st
 
 // RenderDueDate renders due date with overdue highlighting
 func (fr *FieldRenderer) RenderDueDate(dueDate string, isEditing bool, editBuffer string) string {
+	return fr.RenderDueDateWithCursor(dueDate, isEditing, editBuffer, len(editBuffer))
+}
+
+// RenderDueDateWithCursor renders due date with cursor at specified position
+func (fr *FieldRenderer) RenderDueDateWithCursor(dueDate string, isEditing bool, editBuffer string, cursor int) string {
 	if isEditing {
-		return fr.RenderField("Due Date", "", "not set", true, editBuffer)
+		return fr.RenderFieldWithCursor("Due Date", "", "not set", true, editBuffer, cursor)
 	}
 
 	if dueDate == "" {

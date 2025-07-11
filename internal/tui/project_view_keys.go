@@ -16,6 +16,8 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.editingField = ""
 			m.editBuffer = ""
+			m.editCursor = 0
+			m.editCursor = 0
 			
 		case "enter":
 			// Handle project field updates - map single letters to field names
@@ -72,15 +74,39 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.editingField = ""
 			m.editBuffer = ""
+			m.editCursor = 0
 			
 		case "backspace":
-			if len(m.editBuffer) > 0 {
-				m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+			if m.editCursor > 0 && len(m.editBuffer) > 0 {
+				m.editBuffer = m.editBuffer[:m.editCursor-1] + m.editBuffer[m.editCursor:]
+				m.editCursor--
 			}
+			
+		case "delete":
+			if m.editCursor < len(m.editBuffer) {
+				m.editBuffer = m.editBuffer[:m.editCursor] + m.editBuffer[m.editCursor+1:]
+			}
+			
+		case "left":
+			if m.editCursor > 0 {
+				m.editCursor--
+			}
+			
+		case "right":
+			if m.editCursor < len(m.editBuffer) {
+				m.editCursor++
+			}
+			
+		case "home":
+			m.editCursor = 0
+			
+		case "end":
+			m.editCursor = len(m.editBuffer)
 			
 		default:
 			if len(msg.String()) == 1 {
-				m.editBuffer += msg.String()
+				m.editBuffer = m.editBuffer[:m.editCursor] + msg.String() + m.editBuffer[m.editCursor:]
+				m.editCursor++
 			}
 		}
 		return m, nil
@@ -122,6 +148,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.projectViewTab == 0 {
 			m.editingField = "t"  // Title
 			m.editBuffer = m.viewingProject.ProjectMetadata.Title
+			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter title:"
 		}
 		
@@ -129,6 +156,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.projectViewTab == 0 {
 			m.editingField = "p"  // Use single letter like renderField expects
 			m.editBuffer = strings.TrimPrefix(m.viewingProject.ProjectMetadata.Priority, "p")
+			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter priority (1/2/3):"
 		}
 		
@@ -136,6 +164,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.projectViewTab == 0 {
 			m.editingField = "s"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Status
+			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter status (active/completed/paused/cancelled):"
 		} else if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
 			// In tasks tab, 's' opens state menu
@@ -147,6 +176,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.projectViewTab == 0 {
 			m.editingField = "d"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.DueDate
+			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter due date (YYYY-MM-DD or relative: 1d, 1w, tomorrow):"
 		}
 		
@@ -154,6 +184,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.projectViewTab == 0 {
 			m.editingField = "a"  // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Area
+			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter area:"
 		}
 		
@@ -165,6 +196,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.editBuffer = ""
 			}
+			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter tags (space-separated):"
 		}
 		
@@ -202,6 +234,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.viewingFile = &task.File
 			m.editingField = ""
 			m.editBuffer = ""
+			m.editCursor = 0
 			m.returnToProject = true // Remember to return to project view
 			// Keep the project reference!
 		}

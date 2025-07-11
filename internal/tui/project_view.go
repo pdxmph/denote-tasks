@@ -49,9 +49,11 @@ func (m Model) renderProjectView() string {
 	
 	// Status message or edit prompt - JUST LIKE TASK VIEW
 	if m.editingField != "" {
-		prompt := fmt.Sprintf("\n%s %s", m.statusMsg, m.editBuffer)
-		if m.editingField != "" {
-			prompt += "█"
+		var prompt string
+		if m.editCursor < len(m.editBuffer) {
+			prompt = fmt.Sprintf("\n%s %s█%s", m.statusMsg, m.editBuffer[:m.editCursor], m.editBuffer[m.editCursor:])
+		} else {
+			prompt = fmt.Sprintf("\n%s %s█", m.statusMsg, m.editBuffer)
 		}
 		sections = append(sections, editingStyle.Render(prompt))
 	} else if m.statusMsg != "" {

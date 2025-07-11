@@ -46,9 +46,11 @@ func (m Model) renderTaskView() string {
 	
 	// Status message or edit prompt
 	if m.editingField != "" {
-		prompt := fmt.Sprintf("\n%s %s", m.statusMsg, m.editBuffer)
-		if m.editingField != "" {
-			prompt += "█"
+		var prompt string
+		if m.editCursor < len(m.editBuffer) {
+			prompt = fmt.Sprintf("\n%s %s█%s", m.statusMsg, m.editBuffer[:m.editCursor], m.editBuffer[m.editCursor:])
+		} else {
+			prompt = fmt.Sprintf("\n%s %s█", m.statusMsg, m.editBuffer)
 		}
 		sections = append(sections, editingStyle.Render(prompt))
 	} else if m.statusMsg != "" {
@@ -138,12 +140,13 @@ func (m Model) renderTaskDetails() string {
 	lines = append(lines, m.renderFieldWithHotkey("Status", statusStyled, "open", "s"))
 	
 	// Priority - use specialized renderer
-	isEditing := m.editingField == "p"
+	isEditing := m.editingField == "priority"
 	editBuf := ""
+	cursor := m.editCursor
 	if isEditing {
 		editBuf = m.editBuffer
 	}
-	priorityLine := m.fieldRenderer.RenderPriority(meta.Priority, isEditing, editBuf)
+	priorityLine := m.fieldRenderer.RenderPriorityWithCursor(meta.Priority, isEditing, editBuf, cursor)
 	// Add hotkey hint if not editing
 	if !isEditing {
 		priorityLine = strings.Replace(priorityLine, "Priority    :", "(p)riority  :", 1)
@@ -151,12 +154,13 @@ func (m Model) renderTaskDetails() string {
 	lines = append(lines, "  " + priorityLine)
 	
 	// Due Date - use specialized renderer
-	dueDateEdit := m.editingField == "d"
+	dueDateEdit := m.editingField == "due"
 	dueBuf := ""
+	cursor = m.editCursor
 	if dueDateEdit {
 		dueBuf = m.editBuffer
 	}
-	dueLine := m.fieldRenderer.RenderDueDate(meta.DueDate, dueDateEdit, dueBuf)
+	dueLine := m.fieldRenderer.RenderDueDateWithCursor(meta.DueDate, dueDateEdit, dueBuf, cursor)
 	// Add hotkey hint if not editing
 	if !dueDateEdit {
 		dueLine = strings.Replace(dueLine, "Due Date    :", "(d)ue Date  :", 1)
@@ -372,7 +376,22 @@ func wrapText(text string, width int) string {
 func (m Model) renderFieldWithHotkey(label, value, emptyText, hotkey string) string {
 	// Special label formatting for hotkeys
 	displayLabel := label
-	if hotkey != "" && m.editingField != hotkey {
+	
+	// Map single letter hotkeys to field names used in editingField
+	fieldMap := map[string]string{
+		"s": "status",
+		"a": "area",
+		"t": "estimate",
+		"g": "tags",
+		"j": "project",
+	}
+	
+	fieldName := hotkey
+	if mapped, ok := fieldMap[hotkey]; ok {
+		fieldName = mapped
+	}
+	
+	if hotkey != "" && m.editingField != fieldName {
 		// Special cases for better display
 		switch {
 		case hotkey == "t" && label == "Estimate":
@@ -387,13 +406,14 @@ func (m Model) renderFieldWithHotkey(label, value, emptyText, hotkey string) str
 	}
 	
 	// Determine if we're editing this field
-	isEditing := m.editingField == hotkey && hotkey != ""
+	isEditing := m.editingField == fieldName && hotkey != ""
 	editBuf := ""
+	cursor := m.editCursor
 	if isEditing {
 		editBuf = m.editBuffer
 	}
 	
 	// Use the field renderer for consistent formatting
-	rendered := m.fieldRenderer.RenderField(displayLabel, value, emptyText, isEditing, editBuf)
+	rendered := m.fieldRenderer.RenderFieldWithCursor(displayLabel, value, emptyText, isEditing, editBuf, cursor)
 	return "  " + rendered
 }
