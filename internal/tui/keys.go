@@ -529,15 +529,15 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if file.IsTask() || file.IsProject() {
 				m.mode = ModeDateEdit
 				m.editingField = "d"
-				// Load current due date
+				// Load current due date from disk
 				if file.IsTask() {
-					if task, ok := m.taskMetadata[file.Path]; ok {
+					if task, err := denote.ParseTaskFile(file.Path); err == nil {
 						m.editBuffer = task.TaskMetadata.DueDate
 					} else {
 						m.editBuffer = ""
 					}
 				} else if file.IsProject() {
-					if project, ok := m.projectMetadata[file.Path]; ok {
+					if project, err := denote.ParseProjectFile(file.Path); err == nil {
 						m.editBuffer = project.ProjectMetadata.DueDate
 					} else {
 						m.editBuffer = ""
@@ -554,15 +554,15 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if file.IsTask() || file.IsProject() {
 				m.mode = ModeTagsEdit
 				m.editingField = "T"
-				// Load current tags
+				// Load current tags from disk
 				if file.IsTask() {
-					if task, ok := m.taskMetadata[file.Path]; ok && len(task.TaskMetadata.Tags) > 0 {
+					if task, err := denote.ParseTaskFile(file.Path); err == nil && len(task.TaskMetadata.Tags) > 0 {
 						m.editBuffer = strings.Join(task.TaskMetadata.Tags, " ")
 					} else {
 						m.editBuffer = ""
 					}
 				} else if file.IsProject() {
-					if project, ok := m.projectMetadata[file.Path]; ok && len(project.ProjectMetadata.Tags) > 0 {
+					if project, err := denote.ParseProjectFile(file.Path); err == nil && len(project.ProjectMetadata.Tags) > 0 {
 						m.editBuffer = strings.Join(project.ProjectMetadata.Tags, " ")
 					} else {
 						m.editBuffer = ""
@@ -1263,7 +1263,8 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			file := m.filtered[m.cursor]
 			
 			if file.IsTask() {
-				if t, ok := m.taskMetadata[file.Path]; ok {
+				// Load fresh metadata from disk
+				if t, err := denote.ParseTaskFile(file.Path); err == nil {
 					t.TaskMetadata.DueDate = parsedDate
 					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
@@ -1273,13 +1274,13 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						} else {
 							m.statusMsg = fmt.Sprintf("Due date set to %s", parsedDate)
 						}
-						// Force reload metadata
-						delete(m.taskMetadata, file.Path)
+						// Force UI to refresh
 						m.loadVisibleMetadata()
 					}
 				}
 			} else if file.IsProject() {
-				if project, ok := m.projectMetadata[file.Path]; ok {
+				// Load fresh metadata from disk
+				if project, err := denote.ParseProjectFile(file.Path); err == nil {
 					project.ProjectMetadata.DueDate = parsedDate
 					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
@@ -1289,8 +1290,7 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						} else {
 							m.statusMsg = fmt.Sprintf("Due date set to %s", parsedDate)
 						}
-						// Force reload metadata
-						delete(m.projectMetadata, file.Path)
+						// Force UI to refresh
 						m.loadVisibleMetadata()
 					}
 				}
@@ -1366,7 +1366,8 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			
 			if file.IsTask() {
-				if t, ok := m.taskMetadata[file.Path]; ok {
+				// Load fresh metadata from disk
+				if t, err := denote.ParseTaskFile(file.Path); err == nil {
 					t.TaskMetadata.Tags = newTags
 					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
@@ -1376,13 +1377,13 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						} else {
 							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
 						}
-						// Force reload metadata
-						delete(m.taskMetadata, file.Path)
+						// Force UI to refresh
 						m.loadVisibleMetadata()
 					}
 				}
 			} else if file.IsProject() {
-				if project, ok := m.projectMetadata[file.Path]; ok {
+				// Load fresh metadata from disk
+				if project, err := denote.ParseProjectFile(file.Path); err == nil {
 					project.ProjectMetadata.Tags = newTags
 					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
@@ -1392,8 +1393,7 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						} else {
 							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
 						}
-						// Force reload metadata
-						delete(m.projectMetadata, file.Path)
+						// Force UI to refresh
 						m.loadVisibleMetadata()
 					}
 				}

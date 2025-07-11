@@ -26,10 +26,6 @@ type Model struct {
 	filtered   []denote.File
 	cursor     int
 	
-	// Task/Project metadata (parallel arrays to files/filtered)
-	taskMetadata    map[string]*denote.Task    // keyed by file path
-	projectMetadata map[string]*denote.Project // keyed by file path
-	
 	// UI State
 	width      int
 	height     int
@@ -151,8 +147,6 @@ func NewModel(cfg *config.Config) (*Model, error) {
 		mode:            ModeNormal,
 		sortBy:          sortBy,
 		reverseSort:     reverseSort,
-		taskMetadata:    make(map[string]*denote.Task),
-		projectMetadata: make(map[string]*denote.Project),
 		fieldRenderer:   NewFieldRenderer(),
 	}
 	
@@ -176,31 +170,6 @@ func (m *Model) scanFiles() error {
 	
 	m.files = files
 	
-	// Don't clear metadata caches - preserve existing loaded metadata
-	if m.taskMetadata == nil {
-		m.taskMetadata = make(map[string]*denote.Task)
-	}
-	if m.projectMetadata == nil {
-		m.projectMetadata = make(map[string]*denote.Project)
-	}
-	
-	// Remove metadata for files that no longer exist
-	fileMap := make(map[string]bool)
-	for _, f := range m.files {
-		fileMap[f.Path] = true
-	}
-	
-	for path := range m.taskMetadata {
-		if !fileMap[path] {
-			delete(m.taskMetadata, path)
-		}
-	}
-	for path := range m.projectMetadata {
-		if !fileMap[path] {
-			delete(m.projectMetadata, path)
-		}
-	}
-	
 	m.applyFilters()
 	m.sortFiles()
 	
@@ -212,43 +181,8 @@ func (m *Model) scanFiles() error {
 
 // loadVisibleMetadata loads metadata for currently visible files only
 func (m *Model) loadVisibleMetadata() {
-	// Calculate visible range
-	visibleHeight := m.height - 6
-	if visibleHeight < 1 {
-		visibleHeight = 20
-	}
-	
-	start := 0
-	if m.cursor >= visibleHeight {
-		start = m.cursor - visibleHeight + 1
-	}
-	
-	end := start + visibleHeight
-	if end > len(m.filtered) {
-		end = len(m.filtered)
-	}
-	
-	// Always load fresh metadata for visible files
-	for i := start; i < end; i++ {
-		file := &m.filtered[i]
-		if file.IsTask() {
-			if task, err := denote.ParseTaskFile(file.Path); err == nil {
-				m.taskMetadata[file.Path] = task
-				// Update the title with metadata title
-				if task.TaskMetadata.Title != "" {
-					file.Title = task.TaskMetadata.Title
-				}
-			}
-		} else if file.IsProject() {
-			if project, err := denote.ParseProjectFile(file.Path); err == nil {
-				m.projectMetadata[file.Path] = project
-				// Update the title with metadata title
-				if project.ProjectMetadata.Title != "" {
-					file.Title = project.ProjectMetadata.Title
-				}
-			}
-		}
-	}
+	// This function is now a no-op since we read metadata on-demand
+	// We keep it to avoid breaking callers, but it does nothing
 }
 
 func (m *Model) applyFilters() {
@@ -281,17 +215,10 @@ func (m *Model) applyFilters() {
 				
 				// For tasks, also search in metadata
 				if !matches && f.IsTask() {
-					if task, ok := m.taskMetadata[f.Path]; ok {
+					// Always load fresh metadata for search
+					if task, err := denote.ParseTaskFile(f.Path); err == nil {
 						if m.taskMatchesSearch(task, m.searchQuery) {
 							matches = true
-						}
-					} else {
-						// Load metadata on demand
-						if t, err := denote.ParseTaskFile(f.Path); err == nil {
-							m.taskMetadata[f.Path] = t
-							if m.taskMatchesSearch(t, m.searchQuery) {
-								matches = true
-							}
 						}
 					}
 				}
@@ -303,37 +230,19 @@ func (m *Model) applyFilters() {
 		}
 		
 		// Apply filters
-		// Load metadata if needed for filtering
+		// Always load fresh metadata for filtering
 		var taskMeta *denote.Task
 		var projectMeta *denote.Project
 		
 		if f.IsTask() {
-				task, ok := m.taskMetadata[f.Path]
-				if !ok {
-					// Load metadata on demand
-					if t, err := denote.ParseTaskFile(f.Path); err == nil {
-						m.taskMetadata[f.Path] = t
-						task = t
-						ok = true
-					}
-				}
-				if ok {
-					taskMeta = task
-				}
-			} else if f.IsProject() {
-				project, ok := m.projectMetadata[f.Path]
-				if !ok {
-					// Load metadata on demand
-					if p, err := denote.ParseProjectFile(f.Path); err == nil {
-						m.projectMetadata[f.Path] = p
-						project = p
-						ok = true
-					}
-				}
-				if ok {
-					projectMeta = project
-				}
+			if task, err := denote.ParseTaskFile(f.Path); err == nil {
+				taskMeta = task
 			}
+		} else if f.IsProject() {
+			if project, err := denote.ParseProjectFile(f.Path); err == nil {
+				projectMeta = project
+			}
+		}
 			
 			// Area filter
 			if m.areaFilter != "" {
@@ -393,8 +302,8 @@ func (m *Model) applyFilters() {
 }
 
 func (m *Model) sortFiles() {
-	// Always use task-specific sorting now
-	denote.SortTaskFiles(m.filtered, m.sortBy, m.reverseSort, m.taskMetadata, m.projectMetadata)
+	// Sort without cached metadata - SortTaskFiles will read fresh from disk
+	denote.SortTaskFiles(m.filtered, m.sortBy, m.reverseSort, nil, nil)
 }
 
 func (m Model) Init() tea.Cmd {
@@ -509,11 +418,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if renamed, err := denote.RenameFileForTags(oldPath, allTags); err == nil {
 					newPath = renamed
 					if newPath != oldPath {
-						// Update cached metadata with new path
-						if cachedTask, ok := m.taskMetadata[oldPath]; ok {
-							delete(m.taskMetadata, oldPath)
-							m.taskMetadata[newPath] = cachedTask
-						}
+						// No cache to update
 						// Update viewing file path if this is the file being viewed
 						if m.viewingFile != nil && m.viewingFile.Path == oldPath {
 							m.viewingFile.Path = newPath
@@ -535,11 +440,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if renamed, err := denote.RenameFileForTags(oldPath, allTags); err == nil {
 					newPath = renamed
 					if newPath != oldPath {
-						// Update cached metadata with new path
-						if cachedProject, ok := m.projectMetadata[oldPath]; ok {
-							delete(m.projectMetadata, oldPath)
-							m.projectMetadata[newPath] = cachedProject
-						}
+						// No cache to update
 						// Update viewing file path if this is the file being viewed
 						if m.viewingFile != nil && m.viewingFile.Path == oldPath {
 							m.viewingFile.Path = newPath
@@ -587,7 +488,8 @@ func (m *Model) loadProjectsForSelection() {
 	
 	for _, file := range m.files {
 		if file.IsProject() {
-			if project, ok := m.projectMetadata[file.Path]; ok {
+			// Always read fresh from disk
+			if project, err := denote.ParseProjectFile(file.Path); err == nil {
 				m.projectSelectList = append(m.projectSelectList, project)
 			}
 		}
@@ -715,13 +617,14 @@ func (m *Model) updateTaskPriority(priority string) error {
 	}
 	
 	file := m.filtered[m.cursor]
-	task, ok := m.taskMetadata[file.Path]
-	if !ok {
-		return fmt.Errorf("no task metadata found")
+	// Always read fresh from disk
+	task, err := denote.ParseTaskFile(file.Path)
+	if err != nil {
+		return fmt.Errorf("failed to read task: %w", err)
 	}
 	
 	// Update the priority
-	task.Priority = priority
+	task.TaskMetadata.Priority = priority
 	
 	// Read the file content
 	content, err := os.ReadFile(file.Path)
@@ -854,20 +757,12 @@ func (m *Model) updateTaskField(field, value string) error {
 			// Update viewing file path
 			m.viewingFile.Path = newPath
 			
-			// Update in main metadata map
-			if task, ok := m.taskMetadata[oldPath]; ok {
-				delete(m.taskMetadata, oldPath)
-				m.taskMetadata[newPath] = task
-				task.TaskMetadata = taskMeta
-			}
+			// No cache to update
 			
 			// Trigger a rescan to update the file list
 			m.scanFiles()
 		} else {
-			// Just update metadata if no rename
-			if task, ok := m.taskMetadata[m.viewingFile.Path]; ok {
-				task.TaskMetadata = taskMeta
-			}
+			// No cache to update - we read fresh from disk
 		}
 		
 		m.statusMsg = fmt.Sprintf("Updated %s to %s", field, value)
@@ -1008,20 +903,12 @@ func (m *Model) updateProjectField(field, value string) error {
 			// Update viewing file path
 			m.viewingFile.Path = newPath
 			
-			// Update in main metadata map
-			if project, ok := m.projectMetadata[oldPath]; ok {
-				delete(m.projectMetadata, oldPath)
-				m.projectMetadata[newPath] = project
-				project.ProjectMetadata = projectMeta
-			}
+			// No cache to update
 			
 			// Trigger a rescan to update the file list
 			m.scanFiles()
 		} else {
-			// Just update metadata if no rename
-			if project, ok := m.projectMetadata[m.viewingFile.Path]; ok {
-				project.ProjectMetadata = projectMeta
-			}
+			// No cache to update - we read fresh from disk
 		}
 		
 		m.statusMsg = fmt.Sprintf("Updated %s", field)
@@ -1058,18 +945,10 @@ func (m *Model) loadProjectTasks() {
 	// Go through all task files and find ones assigned to this project
 	for _, file := range m.files {
 		if file.IsTask() {
-			// Check if we have metadata cached
-			if task, ok := m.taskMetadata[file.Path]; ok {
+			// Always load fresh metadata from disk
+			if task, err := denote.ParseTaskFile(file.Path); err == nil {
 				if task.TaskMetadata.ProjectID == projectID {
 					m.projectTasks = append(m.projectTasks, *task)
-				}
-			} else {
-				// Load metadata to check
-				if task, err := denote.ParseTaskFile(file.Path); err == nil {
-					m.taskMetadata[file.Path] = task
-					if task.TaskMetadata.ProjectID == projectID {
-						m.projectTasks = append(m.projectTasks, *task)
-					}
 				}
 			}
 		}
@@ -1083,8 +962,8 @@ func (m *Model) loadProjectTasks() {
 			taskFiles[i] = task.File
 		}
 		
-		// Sort the files
-		denote.SortTaskFiles(taskFiles, m.sortBy, m.reverseSort, m.taskMetadata, m.projectMetadata)
+		// Sort the files without cached metadata
+		denote.SortTaskFiles(taskFiles, m.sortBy, m.reverseSort, nil, nil)
 		
 		// Rebuild the task list in sorted order
 		sortedTasks := make([]denote.Task, len(m.projectTasks))
@@ -1143,7 +1022,7 @@ func (m *Model) taskMatchesSearch(task *denote.Task, query string) bool {
 		return true
 	}
 	
-	// Search in project name if we have it cached
+	// Search in project name by looking through files
 	if task.ProjectID != "" {
 		for _, file := range m.files {
 			if file.ID == task.ProjectID && file.IsProject() {
@@ -1175,10 +1054,7 @@ func (m *Model) updateCurrentTaskStatus(newStatus string) error {
 		return err
 	}
 	
-	// Update the cached metadata
-	if task, ok := m.taskMetadata[file.Path]; ok {
-		task.TaskMetadata.Status = newStatus
-	}
+	// No cache to update - we read fresh from disk
 	
 	return nil
 }
@@ -1200,18 +1076,10 @@ func (m *Model) findTasksAffectedByProjectDeletion() {
 	// Go through all task files and find ones assigned to this project
 	for _, file := range m.files {
 		if file.IsTask() {
-			// Check if we have metadata cached
-			if task, ok := m.taskMetadata[file.Path]; ok {
+			// Always load fresh metadata
+			if task, err := denote.ParseTaskFile(file.Path); err == nil {
 				if task.TaskMetadata.ProjectID == projectID {
 					m.affectedTasks = append(m.affectedTasks, *task)
-				}
-			} else {
-				// Load metadata to check
-				if task, err := denote.ParseTaskFile(file.Path); err == nil {
-					m.taskMetadata[file.Path] = task
-					if task.TaskMetadata.ProjectID == projectID {
-						m.affectedTasks = append(m.affectedTasks, *task)
-					}
 				}
 			}
 		}
@@ -1248,10 +1116,7 @@ func (m *Model) clearProjectFromTask(taskPath string) error {
 			return fmt.Errorf(ErrorFailedTo, "write file", err)
 		}
 		
-		// Update cached metadata
-		if task, ok := m.taskMetadata[taskPath]; ok {
-			task.TaskMetadata.ProjectID = ""
-		}
+		// No cache to update
 	}
 	
 	return nil
@@ -1271,11 +1136,8 @@ func (m *Model) updateProjectTaskStatus(newStatus string) error {
 		return err
 	}
 	
-	// Update the cached metadata
+	// Update the in-memory task (but no cache to update)
 	task.TaskMetadata.Status = newStatus
-	if cachedTask, ok := m.taskMetadata[task.File.Path]; ok {
-		cachedTask.TaskMetadata.Status = newStatus
-	}
 	
 	return nil
 }

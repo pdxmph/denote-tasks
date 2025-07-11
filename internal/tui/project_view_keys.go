@@ -56,7 +56,6 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					// Force reload the project from disk to ensure we show the updated data
 					if project, err := denote.ParseProjectFile(m.viewingFile.Path); err == nil {
 						m.viewingProject = project
-						m.projectMetadata[m.viewingFile.Path] = project
 						// Update the file title if it changed
 						if project.ProjectMetadata.Title != "" {
 							m.viewingFile.Title = project.ProjectMetadata.Title
@@ -288,10 +287,6 @@ func (m *Model) updateTaskPriorityFromProject(task *denote.Task, priority string
 		
 		// Update our in-memory copy
 		task.TaskMetadata = taskMeta
-		// Also update in the metadata cache
-		if cachedTask, ok := m.taskMetadata[task.File.Path]; ok {
-			cachedTask.TaskMetadata.Priority = priority
-		}
 	}
 	
 	return nil

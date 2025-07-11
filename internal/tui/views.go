@@ -174,16 +174,18 @@ func (m Model) renderFileList() string {
 		// Find where to show the divider in the full list
 		for i := 0; i < len(m.filtered); i++ {
 			file := m.filtered[i]
-			if task, ok := m.taskMetadata[file.Path]; ok {
-				// Show divider before first task that is:
-				// 1. Due after today, OR
-				// 2. Has no due date (and we've seen tasks with due dates)
-				if (task.TaskMetadata.DueDate != "" && task.TaskMetadata.DueDate > todayStr) ||
-				   (task.TaskMetadata.DueDate == "" && i > 0) {
-					showDividerAt = i
-					break
+			if file.IsTask() {
+				if task, err := denote.ParseTaskFile(file.Path); err == nil {
+					// Show divider before first task that is:
+					// 1. Due after today, OR
+					// 2. Has no due date (and we've seen tasks with due dates)
+					if (task.TaskMetadata.DueDate != "" && task.TaskMetadata.DueDate > todayStr) ||
+					   (task.TaskMetadata.DueDate == "" && i > 0) {
+						showDividerAt = i
+						break
+					}
 				}
-			} else if _, ok := m.projectMetadata[file.Path]; ok {
+			} else if file.IsProject() {
 				// Skip projects - don't show divider for them
 				continue
 			}
@@ -210,13 +212,15 @@ func (m Model) renderFileList() string {
 func (m Model) renderFileLine(index int) string {
 	file := m.filtered[index]
 	
-	// Always render task/project lines (we're always in task mode now)
-	if task, ok := m.taskMetadata[file.Path]; ok {
-		return m.renderTaskLine(index, file, task)
-	}
-	if project, ok := m.projectMetadata[file.Path]; ok {
-		return m.renderProjectLine(index, file, project)
+	// Always render task/project lines with fresh metadata
+	if file.IsTask() {
+		if task, err := denote.ParseTaskFile(file.Path); err == nil {
+			return m.renderTaskLine(index, file, task)
+		}
 	} else if file.IsProject() {
+		if project, err := denote.ParseProjectFile(file.Path); err == nil {
+			return m.renderProjectLine(index, file, project)
+		}
 		// Project without metadata - show debug
 		line := fmt.Sprintf("%s %s %-15s [NO METADATA] %-40s", 
 			" ", ">", file.ID, truncate(file.Title, 40))
@@ -289,7 +293,8 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 				var projTitle string
 				var isActiveProject bool
 				
-				if proj, ok := m.projectMetadata[f.Path]; ok {
+				// Always read fresh from disk
+				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
 					projTitle = truncate(proj.ProjectMetadata.Title, 15)
 					isActiveProject = (proj.ProjectMetadata.Status == denote.ProjectStatusActive || proj.ProjectMetadata.Status == "")
 				} else {
@@ -680,7 +685,8 @@ func (m Model) renderCreate() string {
 		// Find project name
 		for _, f := range m.files {
 			if f.ID == m.createProject && f.IsProject() {
-				if proj, ok := m.projectMetadata[f.Path]; ok && proj.ProjectMetadata.Title != "" {
+				// Always read fresh from disk
+				if proj, err := denote.ParseProjectFile(f.Path); err == nil && proj.ProjectMetadata.Title != "" {
 					projectDisplay = proj.ProjectMetadata.Title
 				} else if f.Title != "" {
 					projectDisplay = f.Title
@@ -807,9 +813,10 @@ func (m Model) renderStateMenu() string {
 	}
 	
 	file := m.filtered[m.cursor]
-	task, ok := m.taskMetadata[file.Path]
-	if !ok {
-		return "Task metadata not loaded"
+	// Always read fresh from disk
+	task, err := denote.ParseTaskFile(file.Path)
+	if err != nil {
+		return "Failed to read task"
 	}
 	
 	prompt := titleStyle.Render("Change Task Status")
@@ -1026,7 +1033,8 @@ func (m Model) renderLogEntry() string {
 	}
 	
 	title := m.loggingFile.Title
-	if task, ok := m.taskMetadata[m.loggingFile.Path]; ok && task.TaskMetadata.Title != "" {
+	// Always read fresh from disk
+	if task, err := denote.ParseTaskFile(m.loggingFile.Path); err == nil && task.TaskMetadata.Title != "" {
 		title = task.TaskMetadata.Title
 	}
 	

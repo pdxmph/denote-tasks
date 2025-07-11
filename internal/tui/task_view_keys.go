@@ -250,10 +250,6 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if newPath != oldPath {
 				// Update references
 				m.viewingFile.Path = newPath
-				if project, ok := m.projectMetadata[oldPath]; ok {
-					delete(m.projectMetadata, oldPath)
-					m.projectMetadata[newPath] = project
-				}
 				// Trigger a rescan to update the file list
 				m.scanFiles()
 				m.statusMsg = "File renamed to match tags"

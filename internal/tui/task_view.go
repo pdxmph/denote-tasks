@@ -193,10 +193,11 @@ func (m Model) renderTaskDetails() string {
 	// Project with name lookup
 	if meta.ProjectID != "" {
 		projectName := meta.ProjectID
-		// Look up project name from cached metadata or file list
+		// Look up project name by reading from disk
 		for _, f := range m.files {
 			if f.ID == meta.ProjectID && f.IsProject() {
-				if proj, ok := m.projectMetadata[f.Path]; ok && proj.ProjectMetadata.Title != "" {
+				// Always read fresh from disk
+				if proj, err := denote.ParseProjectFile(f.Path); err == nil && proj.ProjectMetadata.Title != "" {
 					projectName = proj.ProjectMetadata.Title
 				} else if f.Title != "" {
 					projectName = f.Title

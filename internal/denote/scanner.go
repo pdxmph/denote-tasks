@@ -338,28 +338,70 @@ func SortTaskFiles(files []File, sortBy string, reverse bool, taskMeta map[strin
 
 // Helper functions for sorting
 func getPriority(file File, taskMeta map[string]*Task, projectMeta map[string]*Project) string {
-	if task, ok := taskMeta[file.Path]; ok {
-		return task.Priority
+	// Check cache first if available
+	if taskMeta != nil {
+		if task, ok := taskMeta[file.Path]; ok {
+			return task.TaskMetadata.Priority
+		}
 	}
-	if project, ok := projectMeta[file.Path]; ok {
-		return project.Priority
+	if projectMeta != nil {
+		if project, ok := projectMeta[file.Path]; ok {
+			return project.ProjectMetadata.Priority
+		}
+	}
+	
+	// No cache, read from disk
+	if file.IsTask() {
+		if task, err := ParseTaskFile(file.Path); err == nil {
+			return task.TaskMetadata.Priority
+		}
+	} else if file.IsProject() {
+		if project, err := ParseProjectFile(file.Path); err == nil {
+			return project.ProjectMetadata.Priority
+		}
 	}
 	return ""
 }
 
 func getDueDate(file File, taskMeta map[string]*Task, projectMeta map[string]*Project) string {
-	if task, ok := taskMeta[file.Path]; ok {
-		return task.DueDate
+	// Check cache first if available
+	if taskMeta != nil {
+		if task, ok := taskMeta[file.Path]; ok {
+			return task.TaskMetadata.DueDate
+		}
 	}
-	if project, ok := projectMeta[file.Path]; ok {
-		return project.DueDate
+	if projectMeta != nil {
+		if project, ok := projectMeta[file.Path]; ok {
+			return project.ProjectMetadata.DueDate
+		}
+	}
+	
+	// No cache, read from disk
+	if file.IsTask() {
+		if task, err := ParseTaskFile(file.Path); err == nil {
+			return task.TaskMetadata.DueDate
+		}
+	} else if file.IsProject() {
+		if project, err := ParseProjectFile(file.Path); err == nil {
+			return project.ProjectMetadata.DueDate
+		}
 	}
 	return ""
 }
 
 func getEstimate(file File, taskMeta map[string]*Task) int {
-	if task, ok := taskMeta[file.Path]; ok {
-		return task.Estimate
+	// Check cache first if available
+	if taskMeta != nil {
+		if task, ok := taskMeta[file.Path]; ok {
+			return task.TaskMetadata.Estimate
+		}
+	}
+	
+	// No cache, read from disk
+	if file.IsTask() {
+		if task, err := ParseTaskFile(file.Path); err == nil {
+			return task.TaskMetadata.Estimate
+		}
 	}
 	return 0
 }
