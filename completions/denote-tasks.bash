@@ -32,208 +32,251 @@ _denote_tasks_completions() {
         "$prog" completion tags 2>/dev/null
     }
 
-    # Main command
+    # Global flags available everywhere
+    local global_flags="--config --dir --json --no-color --quiet -q --area --tui -t --help --version"
+
+    # Main command - check if it's the first word after the program name
     if [[ $cword -eq 1 ]]; then
-        COMPREPLY=($(compgen -W "task project note --tui --help --version" -- "$cur"))
+        # Task commands (implicit) + other commands
+        COMPREPLY=($(compgen -W "new list update done log edit delete project completion $global_flags" -- "$cur"))
         return
     fi
 
-    # Global flags available everywhere
-    local global_flags="--config --dir --json --no-color --quiet -q --area --tui -t"
-
-    # Check for entity type (task, project, note)
-    local entity=""
+    # Check what command we're completing
+    local cmd=""
     local subcmd=""
     
     for ((i=1; i<cword; i++)); do
         case "${words[i]}" in
-            task|project|note)
-                entity="${words[i]}"
+            # Skip global flags
+            --config|--dir|--area|-t|--tui|-q|--quiet|--json|--no-color)
+                # Skip the flag and its argument if needed
+                if [[ "${words[i]}" =~ ^--(config|dir|area)$ ]]; then
+                    ((i++))
+                fi
                 ;;
-            new|list|update|done|edit|delete|log|tasks|rename)
-                if [[ -n "$entity" ]]; then
+            # Commands
+            new|list|update|done|log|edit|delete|project|completion)
+                if [[ -z "$cmd" ]]; then
+                    cmd="${words[i]}"
+                else
                     subcmd="${words[i]}"
                 fi
                 ;;
         esac
     done
 
-    # Task commands
-    if [[ "$entity" == "task" ]]; then
-        if [[ -z "$subcmd" ]]; then
-            COMPREPLY=($(compgen -W "new list update done edit delete log $global_flags" -- "$cur"))
-            return
-        fi
-
-        case "$subcmd" in
-            new)
-                case "$prev" in
-                    -p|--priority)
-                        COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
-                        ;;
-                    -due|--due)
-                        COMPREPLY=($(compgen -W "today tomorrow monday tuesday wednesday thursday friday saturday sunday" -- "$cur"))
-                        ;;
-                    -area|--area)
-                        local areas=$(_get_areas)
-                        COMPREPLY=($(compgen -W "$areas" -- "$cur"))
-                        ;;
-                    -project|--project)
-                        local projects=$(_get_project_ids)
-                        COMPREPLY=($(compgen -W "$projects" -- "$cur"))
-                        ;;
-                    -estimate|--estimate)
-                        COMPREPLY=($(compgen -W "1 2 3 5 8 13 21" -- "$cur"))
-                        ;;
-                    *)
-                        COMPREPLY=($(compgen -W "-p --priority -due --due -area --area -project --project -estimate --estimate -tags --tags $global_flags" -- "$cur"))
-                        ;;
-                esac
-                ;;
-                
-            list)
-                case "$prev" in
-                    -status|--status)
-                        COMPREPLY=($(compgen -W "open done paused delegated dropped" -- "$cur"))
-                        ;;
-                    -p|--priority)
-                        COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
-                        ;;
-                    -area|--area)
-                        local areas=$(_get_areas)
-                        COMPREPLY=($(compgen -W "$areas" -- "$cur"))
-                        ;;
-                    -project|--project)
-                        local projects=$(_get_project_ids)
-                        COMPREPLY=($(compgen -W "$projects" -- "$cur"))
-                        ;;
-                    -sort|--sort|-s)
-                        COMPREPLY=($(compgen -W "modified priority due created" -- "$cur"))
-                        ;;
-                    *)
-                        COMPREPLY=($(compgen -W "-all -a -status --status -area --area -p --priority -project --project -overdue --overdue -soon --soon -sort --sort -s -reverse --reverse -r $global_flags" -- "$cur"))
-                        ;;
-                esac
-                ;;
-                
-            update|done|edit|delete|log)
-                # These commands take task IDs as first argument
-                if [[ "${words[cword-1]}" == "$subcmd" ]]; then
-                    # Complete with task IDs
-                    local task_ids=$(_get_task_ids)
-                    COMPREPLY=($(compgen -W "$task_ids" -- "$cur"))
-                elif [[ "$subcmd" == "update" ]]; then
+    # Handle completion based on command
+    case "$cmd" in
+        # Task commands (implicit)
+        new)
+            case "$prev" in
+                -p|--priority)
+                    COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
+                    ;;
+                --due)
+                    COMPREPLY=($(compgen -W "today tomorrow monday tuesday wednesday thursday friday saturday sunday" -- "$cur"))
+                    ;;
+                --area)
+                    local areas=$(_get_areas)
+                    COMPREPLY=($(compgen -W "$areas" -- "$cur"))
+                    ;;
+                --project)
+                    local projects=$(_get_project_ids)
+                    COMPREPLY=($(compgen -W "$projects" -- "$cur"))
+                    ;;
+                --estimate)
+                    COMPREPLY=($(compgen -W "1 2 3 5 8 13 21" -- "$cur"))
+                    ;;
+                *)
+                    COMPREPLY=($(compgen -W "-p --priority --due --area --project --estimate --tags $global_flags" -- "$cur"))
+                    ;;
+            esac
+            ;;
+            
+        list)
+            case "$prev" in
+                --status)
+                    COMPREPLY=($(compgen -W "open done paused delegated dropped" -- "$cur"))
+                    ;;
+                -p|--priority)
+                    COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
+                    ;;
+                --area)
+                    local areas=$(_get_areas)
+                    COMPREPLY=($(compgen -W "$areas" -- "$cur"))
+                    ;;
+                --project)
+                    local projects=$(_get_project_ids)
+                    COMPREPLY=($(compgen -W "$projects" -- "$cur"))
+                    ;;
+                -s|--sort)
+                    COMPREPLY=($(compgen -W "modified priority due created" -- "$cur"))
+                    ;;
+                *)
+                    COMPREPLY=($(compgen -W "-a --all --area --status -p --priority --project --overdue --soon -s --sort -r --reverse $global_flags" -- "$cur"))
+                    ;;
+            esac
+            ;;
+            
+        update)
+            case "$prev" in
+                -p|--priority)
+                    COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
+                    ;;
+                --due)
+                    COMPREPLY=($(compgen -W "today tomorrow monday tuesday wednesday thursday friday saturday sunday" -- "$cur"))
+                    ;;
+                --area)
+                    local areas=$(_get_areas)
+                    COMPREPLY=($(compgen -W "$areas" -- "$cur"))
+                    ;;
+                --project)
+                    local projects=$(_get_project_ids)
+                    COMPREPLY=($(compgen -W "$projects" -- "$cur"))
+                    ;;
+                --status)
+                    COMPREPLY=($(compgen -W "open done paused delegated dropped" -- "$cur"))
+                    ;;
+                --estimate)
+                    COMPREPLY=($(compgen -W "1 2 3 5 8 13 21" -- "$cur"))
+                    ;;
+                *)
+                    # Check if we've already got flags, then suggest task IDs
+                    local has_flags=false
+                    for word in "${words[@]:2}"; do
+                        if [[ "$word" =~ ^- ]]; then
+                            has_flags=true
+                            break
+                        fi
+                    done
+                    
+                    if [[ "$has_flags" == true ]] || [[ "$cur" != -* ]]; then
+                        local tasks=$(_get_task_ids)
+                        COMPREPLY=($(compgen -W "$tasks" -- "$cur"))
+                    else
+                        COMPREPLY=($(compgen -W "-p --priority --due --area --project --status --estimate $global_flags" -- "$cur"))
+                    fi
+                    ;;
+            esac
+            ;;
+            
+        done|delete)
+            # Always suggest task IDs
+            local tasks=$(_get_task_ids)
+            COMPREPLY=($(compgen -W "$tasks $global_flags" -- "$cur"))
+            ;;
+            
+        log)
+            # First argument should be task ID
+            if [[ $cword -eq 2 ]] || [[ "$prev" == "log" ]]; then
+                local tasks=$(_get_task_ids)
+                COMPREPLY=($(compgen -W "$tasks" -- "$cur"))
+            fi
+            # After task ID, no completion (free text log message)
+            ;;
+            
+        edit)
+            # Task ID
+            local tasks=$(_get_task_ids)
+            COMPREPLY=($(compgen -W "$tasks $global_flags" -- "$cur"))
+            ;;
+            
+        # Project command
+        project)
+            if [[ -z "$subcmd" ]]; then
+                COMPREPLY=($(compgen -W "new list update tasks $global_flags" -- "$cur"))
+                return
+            fi
+            
+            case "$subcmd" in
+                new)
                     case "$prev" in
-                        -status|--status)
-                            COMPREPLY=($(compgen -W "open done paused delegated dropped" -- "$cur"))
+                        -p|--priority)
+                            COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
+                            ;;
+                        --due|--start)
+                            COMPREPLY=($(compgen -W "today tomorrow monday tuesday wednesday thursday friday saturday sunday" -- "$cur"))
+                            ;;
+                        --area)
+                            local areas=$(_get_areas)
+                            COMPREPLY=($(compgen -W "$areas" -- "$cur"))
+                            ;;
+                        *)
+                            COMPREPLY=($(compgen -W "-p --priority --due --area --start --tags $global_flags" -- "$cur"))
+                            ;;
+                    esac
+                    ;;
+                    
+                list)
+                    case "$prev" in
+                        --status)
+                            COMPREPLY=($(compgen -W "active completed paused cancelled" -- "$cur"))
                             ;;
                         -p|--priority)
                             COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
                             ;;
-                        -area|--area)
+                        --area)
                             local areas=$(_get_areas)
                             COMPREPLY=($(compgen -W "$areas" -- "$cur"))
                             ;;
-                        -project|--project)
-                            local projects=$(_get_project_ids)
-                            COMPREPLY=($(compgen -W "$projects" -- "$cur"))
+                        -s|--sort)
+                            COMPREPLY=($(compgen -W "modified priority due created title" -- "$cur"))
                             ;;
                         *)
-                            COMPREPLY=($(compgen -W "-status --status -p --priority -due --due -area --area -project --project -tags --tags $global_flags" -- "$cur"))
+                            COMPREPLY=($(compgen -W "-a --all --area --status -p --priority -s --sort -r --reverse $global_flags" -- "$cur"))
                             ;;
                     esac
-                fi
-                ;;
-        esac
-        
-    # Project commands
-    elif [[ "$entity" == "project" ]]; then
-        if [[ -z "$subcmd" ]]; then
-            COMPREPLY=($(compgen -W "new list update tasks $global_flags" -- "$cur"))
-            return
-        fi
-
-        case "$subcmd" in
-            new)
-                case "$prev" in
-                    -p|--priority)
-                        COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
-                        ;;
-                    -area|--area)
-                        local areas=$(_get_areas)
-                        COMPREPLY=($(compgen -W "$areas" -- "$cur"))
-                        ;;
-                    -status|--status)
-                        COMPREPLY=($(compgen -W "active paused completed cancelled" -- "$cur"))
-                        ;;
-                    *)
-                        COMPREPLY=($(compgen -W "-p --priority -area --area -status --status -due --due -tags --tags $global_flags" -- "$cur"))
-                        ;;
-                esac
-                ;;
-                
-            list)
-                case "$prev" in
-                    -sort|--sort)
-                        COMPREPLY=($(compgen -W "modified priority due created name area" -- "$cur"))
-                        ;;
-                    *)
-                        COMPREPLY=($(compgen -W "-all -sort --sort -reverse --reverse $global_flags" -- "$cur"))
-                        ;;
-                esac
-                ;;
-        esac
-        
-    # Note commands
-    elif [[ "$entity" == "note" ]]; then
-        if [[ -z "$subcmd" ]]; then
-            COMPREPLY=($(compgen -W "new list edit rename $global_flags" -- "$cur"))
-            return
-        fi
-
-        case "$subcmd" in
-            new)
-                case "$prev" in
-                    -tags|--tags)
-                        local tags=$(_get_tags)
-                        COMPREPLY=($(compgen -W "$tags" -- "$cur"))
-                        ;;
-                    *)
-                        COMPREPLY=($(compgen -W "-tags --tags $global_flags" -- "$cur"))
-                        ;;
-                esac
-                ;;
-                
-            list)
-                case "$prev" in
-                    -tag|--tag)
-                        # Could complete with existing tags
-                        ;;
-                    *)
-                        COMPREPLY=($(compgen -W "-tag --tag $global_flags" -- "$cur"))
-                        ;;
-                esac
-                ;;
-        esac
-        
-    # Legacy command support
-    else
-        case "${words[1]}" in
-            add)
-                # Same as task new
-                _denote_tasks_completions
-                ;;
-            list)
-                # Same as task list
-                _denote_tasks_completions
-                ;;
-            done)
-                # Complete with task IDs
-                local task_ids=$(_get_task_ids)
-                COMPREPLY=($(compgen -W "$task_ids" -- "$cur"))
-                ;;
-        esac
-    fi
+                    ;;
+                    
+                update)
+                    case "$prev" in
+                        -p|--priority)
+                            COMPREPLY=($(compgen -W "p1 p2 p3" -- "$cur"))
+                            ;;
+                        --due)
+                            COMPREPLY=($(compgen -W "today tomorrow monday tuesday wednesday thursday friday saturday sunday" -- "$cur"))
+                            ;;
+                        --area)
+                            local areas=$(_get_areas)
+                            COMPREPLY=($(compgen -W "$areas" -- "$cur"))
+                            ;;
+                        --status)
+                            COMPREPLY=($(compgen -W "active completed paused cancelled" -- "$cur"))
+                            ;;
+                        *)
+                            # Check if we need project IDs
+                            local has_flags=false
+                            for word in "${words[@]:3}"; do
+                                if [[ "$word" =~ ^- ]]; then
+                                    has_flags=true
+                                    break
+                                fi
+                            done
+                            
+                            if [[ "$has_flags" == true ]] || [[ "$cur" != -* ]]; then
+                                local projects=$(_get_project_ids)
+                                COMPREPLY=($(compgen -W "$projects" -- "$cur"))
+                            else
+                                COMPREPLY=($(compgen -W "-p --priority --due --area --status $global_flags" -- "$cur"))
+                            fi
+                            ;;
+                    esac
+                    ;;
+                    
+                tasks)
+                    # Project ID
+                    local projects=$(_get_project_ids)
+                    COMPREPLY=($(compgen -W "$projects $global_flags" -- "$cur"))
+                    ;;
+            esac
+            ;;
+            
+        # Completion command
+        completion)
+            COMPREPLY=($(compgen -W "task-ids project-ids areas tags" -- "$cur"))
+            ;;
+    esac
 }
 
 complete -F _denote_tasks_completions denote-tasks
