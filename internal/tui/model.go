@@ -610,21 +610,13 @@ func (m Model) create() tea.Cmd {
 	}
 }
 
-// updateTaskPriority updates the priority of the current task
+// updateTaskPriority updates the priority of the current task or project
 func (m *Model) updateTaskPriority(priority string) error {
 	if m.cursor >= len(m.filtered) {
-		return fmt.Errorf("no task selected")
+		return fmt.Errorf("no item selected")
 	}
 	
 	file := m.filtered[m.cursor]
-	// Always read fresh from disk
-	task, err := denote.ParseTaskFile(file.Path)
-	if err != nil {
-		return fmt.Errorf("failed to read task: %w", err)
-	}
-	
-	// Update the priority
-	task.TaskMetadata.Priority = priority
 	
 	// Read the file content
 	content, err := os.ReadFile(file.Path)
@@ -638,28 +630,51 @@ func (m *Model) updateTaskPriority(priority string) error {
 		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
 	}
 	
-	// Update the metadata
-	if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
-		taskMeta.Priority = priority
-		
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-		if err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
+	// Handle both tasks and projects
+	if file.IsTask() {
+		if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
+			taskMeta.Priority = priority
+			
+			// Write updated content
+			newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
+			if err != nil {
+				return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
+			}
+			
+			// Write to file
+			if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
+				return fmt.Errorf(ErrorFailedTo, "write file", err)
+			}
+			
+			if priority == "" {
+				m.statusMsg = "Task priority removed"
+			} else {
+				m.statusMsg = fmt.Sprintf("Task priority updated to %s", priority)
+			}
 		}
-		
-		// Write to file
-		if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write file", err)
+	} else if file.IsProject() {
+		if projectMeta, ok := fm.Metadata.(denote.ProjectMetadata); ok {
+			projectMeta.Priority = priority
+			
+			// Write updated content
+			newContent, err := denote.WriteFrontmatterFile(projectMeta, fm.Content)
+			if err != nil {
+				return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
+			}
+			
+			// Write to file
+			if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
+				return fmt.Errorf(ErrorFailedTo, "write file", err)
+			}
+			
+			if priority == "" {
+				m.statusMsg = "Project priority removed"
+			} else {
+				m.statusMsg = fmt.Sprintf("Project priority updated to %s", priority)
+			}
 		}
-		
-		// Update our in-memory copy
-		task.TaskMetadata = taskMeta
-		if priority == "" {
-			m.statusMsg = "Priority removed"
-		} else {
-			m.statusMsg = fmt.Sprintf("Priority updated to %s", priority)
-		}
+	} else {
+		return fmt.Errorf("selected file is neither task nor project")
 	}
 	
 	return nil

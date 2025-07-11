@@ -36,12 +36,16 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				
 				switch m.editingField {
 				case "p":
-					if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
+					if m.editBuffer == "" || m.editBuffer == "0" {
+						// Clear priority
+						updateValue = ""
+					} else if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
 						updateValue = "p" + m.editBuffer
 					} else {
-						m.statusMsg = "Priority must be 1, 2, or 3"
+						m.statusMsg = "Priority must be 0 (clear), 1, 2, or 3"
 						m.editingField = ""
 						m.editBuffer = ""
+						m.editCursor = 0
 						return m, nil
 					}
 				default:
@@ -53,7 +57,12 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if updateErr != nil {
 					m.statusMsg = fmt.Sprintf(ErrorFormat, updateErr)
 				} else {
-					m.statusMsg = fmt.Sprintf("Updated %s", fieldName)
+					// Special message for priority clearing
+					if m.editingField == "p" && updateValue == "" {
+						m.statusMsg = "Priority removed"
+					} else {
+						m.statusMsg = fmt.Sprintf("Updated %s", fieldName)
+					}
 					
 					// Force reload the project from disk to ensure we show the updated data
 					if project, err := denote.ParseProjectFile(m.viewingFile.Path); err == nil {
@@ -157,7 +166,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editingField = "p"  // Use single letter like renderField expects
 			m.editBuffer = strings.TrimPrefix(m.viewingProject.ProjectMetadata.Priority, "p")
 			m.editCursor = len(m.editBuffer)
-			m.statusMsg = "Enter priority (1/2/3):"
+			m.statusMsg = "Enter priority (0 to clear, 1/2/3):"
 		}
 		
 	case "s":
