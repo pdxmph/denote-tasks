@@ -1,6 +1,6 @@
 # denote-tasks
 
-A focused task management tool using the Denote file naming convention.
+A focused task management tool using the Denote file naming convention for portability. This project has no association with the Denote project.
 
 ## What it is
 
@@ -11,6 +11,7 @@ A focused task management tool using the Denote file naming convention.
 - **Not a general note-taking app** - Use Denote in Emacs or other tools for that
 - **Not a calendar** - Though it tracks due dates
 - **Not a time tracker** - Though it supports time estimates
+- **For most people?** - It's very aligned with one particular person's idea of just how they wanted CLI/TUI task management to work.
 
 ## Quick Start
 
