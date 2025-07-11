@@ -83,27 +83,32 @@ denote-tasks project tasks 15  # Show tasks for project
 - `j/k` or `↓/↑` - Move down/up
 - `g g` - Go to top
 - `G` - Go to bottom
-- `p` - Switch to projects view
-- `t` - Switch to tasks view
+- `Enter` - Open task/project details
 
-**Task Actions:**
+**Actions (lowercase):**
 
-- `Enter` - Preview/view item
 - `c` - Create new task or project
-- `0` - Clear priority
-- `1/2/3` - Set task priority (p1/p2/p3)
-- `s` - Change task state menu
-- `x` - Delete task/project
-- `e` - Edit in external editor
-- `u` - Update task metadata
-- `l` - Add log entry to task
-
-**Organization:**
-
-- `/` - Search (use `#tag` for tag search)
-- `f` - Filter menu (area/priority/state/soon)
-- `S` - Sort options menu
+- `d` - Edit due date
+- `l` - Add log entry (tasks only)
 - `r` - Toggle sort order
+- `s` - Change task state
+- `t` - Edit tags
+- `u` - Update task metadata
+- `x` - Delete task/project
+- `/` - Search (use `#tag` for tag search)
+
+**Priority:**
+
+- `0` - Clear priority
+- `1/2/3` - Set priority (p1/p2/p3)
+
+**Filters & Views (uppercase):**
+
+- `E` - Edit in external editor
+- `P` - Toggle projects view
+- `T` - Toggle tasks view
+- `S` - Sort options menu
+- `f` - Filter menu (area/priority/state/soon)
 
 **General:**
 
@@ -118,7 +123,7 @@ Create `~/.config/denote-tasks/config.toml`:
 
 ```toml
 notes_directory = "~/tasks"  # Where task files live (kept for backward compatibility)
-editor = "vim"              # External editor for 'e' command
+editor = "vim"              # External editor for 'E' command
 default_area = "work"       # Default area for new tasks
 soon_horizon = 3            # Days ahead for "soon" filter
 
