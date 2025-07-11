@@ -1414,18 +1414,38 @@ func (m Model) renderDateEditPopup() string {
 	var content []string
 	content = append(content, "Edit Due Date")
 	content = append(content, "")
-	content = append(content, "Format: YYYY-MM-DD")
+	content = append(content, "Examples: today, tomorrow, 7d, 2w, fri, jan 15")
+	content = append(content, "Format: YYYY-MM-DD or natural language")
 	content = append(content, "")
-	content = append(content, fmt.Sprintf("Date: %s█", m.editBuffer))
+	
+	// Show input with validation preview
+	inputLine := fmt.Sprintf("Input: %s█", m.editBuffer)
+	content = append(content, inputLine)
+	
+	// Show parsed date preview if valid
+	if m.editBuffer != "" {
+		parsed, err := denote.ParseNaturalDate(m.editBuffer)
+		if err == nil {
+			content = append(content, fmt.Sprintf("→ %s", parsed))
+		} else {
+			errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+			content = append(content, errorStyle.Render("→ Invalid date"))
+		}
+	} else {
+		content = append(content, "→ (empty = remove date)")
+	}
+	
 	content = append(content, "")
 	content = append(content, "Enter to save, Esc to cancel")
 	
-	// Style the popup
+	// Style the popup with background color
 	popupStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("214")).
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("252")).
 		Padding(1, 2).
-		Width(40).
+		Width(50).
 		Align(lipgloss.Center)
 	
 	popup := popupStyle.Render(strings.Join(content, "\n"))
@@ -1448,10 +1468,12 @@ func (m Model) renderTagsEditPopup() string {
 	content = append(content, "")
 	content = append(content, "Enter to save, Esc to cancel")
 	
-	// Style the popup
+	// Style the popup with background color
 	popupStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("135")). // Purple for tags
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("252")).
 		Padding(1, 2).
 		Width(50).
 		Align(lipgloss.Center)
@@ -1463,68 +1485,24 @@ func (m Model) renderTagsEditPopup() string {
 }
 
 func (m Model) overlayPopup(background, popup string) string {
-	bgLines := strings.Split(background, "\n")
-	popupLines := strings.Split(popup, "\n")
+	// Simply center the popup on the screen using lipgloss
+	// We'll clear the screen and show just the popup centered
 	
-	// Calculate center position
-	bgHeight := len(bgLines)
-	bgWidth := 0
-	for _, line := range bgLines {
-		if len(line) > bgWidth {
-			bgWidth = len(line)
-		}
+	width := m.width
+	height := m.height
+	if width == 0 {
+		width = 80
+	}
+	if height == 0 {
+		height = 24
 	}
 	
-	popupHeight := len(popupLines)
-	popupWidth := 0
-	for _, line := range popupLines {
-		lineWidth := lipgloss.Width(line)
-		if lineWidth > popupWidth {
-			popupWidth = lineWidth
-		}
-	}
-	
-	// Calculate starting position
-	startY := (bgHeight - popupHeight) / 2
-	if startY < 0 {
-		startY = 0
-	}
-	
-	startX := (bgWidth - popupWidth) / 2
-	if startX < 0 {
-		startX = 0
-	}
-	
-	// Overlay popup on background
-	result := make([]string, len(bgLines))
-	copy(result, bgLines)
-	
-	for i, popupLine := range popupLines {
-		if startY+i < len(result) {
-			// Create a line with proper spacing
-			line := ""
-			if startX > 0 {
-				// Add the left part of the background
-				bgLine := bgLines[startY+i]
-				if startX < len(bgLine) {
-					line = bgLine[:startX]
-				} else {
-					line = bgLine + strings.Repeat(" ", startX-len(bgLine))
-				}
-			}
-			
-			// Add the popup line
-			line += popupLine
-			
-			// Pad to maintain line width if needed
-			if len(line) < bgWidth {
-				line += strings.Repeat(" ", bgWidth-len(line))
-			}
-			
-			result[startY+i] = line
-		}
-	}
-	
-	return strings.Join(result, "\n")
+	// Use lipgloss.Place to center the popup
+	return lipgloss.Place(
+		width,
+		height,
+		lipgloss.Center,
+		lipgloss.Center,
+		popup,
+	)
 }
-EOF < /dev/null

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	
 	"github.com/charmbracelet/bubbletea"
 	"github.com/pdxmph/denote-tasks/internal/denote"
@@ -545,13 +546,13 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-	case "g":
+	case "T":
 		// Edit tags
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
 			file := m.filtered[m.cursor]
 			if file.IsTask() || file.IsProject() {
 				m.mode = ModeTagsEdit
-				m.editingField = "g"
+				m.editingField = "T"
 				// Load current tags
 				if file.IsTask() {
 					if task, ok := m.taskMetadata[file.Path]; ok && len(task.TaskMetadata.Tags) > 0 {
@@ -1247,20 +1248,27 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.editBuffer = ""
 		
 	case "enter":
+		// Parse and validate the date
+		parsedDate, err := denote.ParseNaturalDate(m.editBuffer)
+		if err != nil && m.editBuffer != "" {
+			m.statusMsg = fmt.Sprintf("Invalid date: %s", err)
+			return m, nil
+		}
+		
 		// Update the due date
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
 			file := m.filtered[m.cursor]
 			
 			if file.IsTask() {
-				if task, ok := m.taskMetadata[file.Path]; ok {
-					task.TaskMetadata.DueDate = m.editBuffer
-					if err := task.UpdateTaskFile(file.Path, task.TaskMetadata); err != nil {
+				if t, ok := m.taskMetadata[file.Path]; ok {
+					t.TaskMetadata.DueDate = parsedDate
+					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
-						if m.editBuffer == "" {
+						if parsedDate == "" {
 							m.statusMsg = "Due date removed"
 						} else {
-							m.statusMsg = fmt.Sprintf("Due date set to %s", m.editBuffer)
+							m.statusMsg = fmt.Sprintf("Due date set to %s", parsedDate)
 						}
 						// Force reload metadata
 						delete(m.taskMetadata, file.Path)
@@ -1269,14 +1277,14 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			} else if file.IsProject() {
 				if project, ok := m.projectMetadata[file.Path]; ok {
-					project.ProjectMetadata.DueDate = m.editBuffer
+					project.ProjectMetadata.DueDate = parsedDate
 					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
-						if m.editBuffer == "" {
+						if parsedDate == "" {
 							m.statusMsg = "Due date removed"
 						} else {
-							m.statusMsg = fmt.Sprintf("Due date set to %s", m.editBuffer)
+							m.statusMsg = fmt.Sprintf("Due date set to %s", parsedDate)
 						}
 						// Force reload metadata
 						delete(m.projectMetadata, file.Path)
@@ -1327,9 +1335,9 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			
 			if file.IsTask() {
-				if task, ok := m.taskMetadata[file.Path]; ok {
-					task.TaskMetadata.Tags = newTags
-					if err := task.UpdateTaskFile(file.Path, task.TaskMetadata); err != nil {
+				if t, ok := m.taskMetadata[file.Path]; ok {
+					t.TaskMetadata.Tags = newTags
+					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
 						if len(newTags) == 0 {
