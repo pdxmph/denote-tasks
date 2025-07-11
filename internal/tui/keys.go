@@ -47,6 +47,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCreateProjectKeys(msg)
 	case ModeCreateProjectTags:
 		return m.handleCreateProjectTagsKeys(msg)
+	case ModeDateEdit:
+		return m.handleDateEditKeys(msg)
+	case ModeTagsEdit:
+		return m.handleTagsEditKeys(msg)
 	default:
 		return m.handleNormalKeys(msg)
 	}
@@ -514,6 +518,54 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.loggingFile = &file
 			} else {
 				m.statusMsg = "Log entries only available for tasks"
+			}
+		}
+		
+	case "d":
+		// Edit due date
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			if file.IsTask() || file.IsProject() {
+				m.mode = ModeDateEdit
+				m.editingField = "d"
+				// Load current due date
+				if file.IsTask() {
+					if task, ok := m.taskMetadata[file.Path]; ok {
+						m.editBuffer = task.TaskMetadata.DueDate
+					} else {
+						m.editBuffer = ""
+					}
+				} else if file.IsProject() {
+					if project, ok := m.projectMetadata[file.Path]; ok {
+						m.editBuffer = project.ProjectMetadata.DueDate
+					} else {
+						m.editBuffer = ""
+					}
+				}
+			}
+		}
+		
+	case "g":
+		// Edit tags
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			if file.IsTask() || file.IsProject() {
+				m.mode = ModeTagsEdit
+				m.editingField = "g"
+				// Load current tags
+				if file.IsTask() {
+					if task, ok := m.taskMetadata[file.Path]; ok && len(task.TaskMetadata.Tags) > 0 {
+						m.editBuffer = strings.Join(task.TaskMetadata.Tags, " ")
+					} else {
+						m.editBuffer = ""
+					}
+				} else if file.IsProject() {
+					if project, ok := m.projectMetadata[file.Path]; ok && len(project.ProjectMetadata.Tags) > 0 {
+						m.editBuffer = strings.Join(project.ProjectMetadata.Tags, " ")
+					} else {
+						m.editBuffer = ""
+					}
+				}
 			}
 		}
 		
@@ -1181,6 +1233,145 @@ func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.projectSelectCursor = num // 1-9 maps to cursor positions 1-9 (after None at 0)
 			// Auto-select
 			return m.handleProjectSelectKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{rune(tea.KeyEnter)}})
+		}
+	}
+	
+	return m, nil
+}
+
+func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		m.mode = ModeNormal
+		m.editingField = ""
+		m.editBuffer = ""
+		
+	case "enter":
+		// Update the due date
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			
+			if file.IsTask() {
+				if task, ok := m.taskMetadata[file.Path]; ok {
+					task.TaskMetadata.DueDate = m.editBuffer
+					if err := task.UpdateTaskFile(file.Path, task.TaskMetadata); err != nil {
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+					} else {
+						if m.editBuffer == "" {
+							m.statusMsg = "Due date removed"
+						} else {
+							m.statusMsg = fmt.Sprintf("Due date set to %s", m.editBuffer)
+						}
+						// Force reload metadata
+						delete(m.taskMetadata, file.Path)
+						m.loadVisibleMetadata()
+					}
+				}
+			} else if file.IsProject() {
+				if project, ok := m.projectMetadata[file.Path]; ok {
+					project.ProjectMetadata.DueDate = m.editBuffer
+					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+					} else {
+						if m.editBuffer == "" {
+							m.statusMsg = "Due date removed"
+						} else {
+							m.statusMsg = fmt.Sprintf("Due date set to %s", m.editBuffer)
+						}
+						// Force reload metadata
+						delete(m.projectMetadata, file.Path)
+						m.loadVisibleMetadata()
+					}
+				}
+			}
+		}
+		m.mode = ModeNormal
+		m.editingField = ""
+		m.editBuffer = ""
+		
+	case "backspace":
+		if len(m.editBuffer) > 0 {
+			m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+		}
+		
+	default:
+		if len(msg.String()) == 1 {
+			m.editBuffer += msg.String()
+		}
+	}
+	
+	return m, nil
+}
+
+func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		m.mode = ModeNormal
+		m.editingField = ""
+		m.editBuffer = ""
+		
+	case "enter":
+		// Update the tags
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			
+			// Parse tags from input
+			var newTags []string
+			if m.editBuffer != "" {
+				for _, tag := range strings.Fields(m.editBuffer) {
+					tag = strings.TrimSpace(tag)
+					if tag != "" && tag != "task" && tag != "project" {
+						newTags = append(newTags, tag)
+					}
+				}
+			}
+			
+			if file.IsTask() {
+				if task, ok := m.taskMetadata[file.Path]; ok {
+					task.TaskMetadata.Tags = newTags
+					if err := task.UpdateTaskFile(file.Path, task.TaskMetadata); err != nil {
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+					} else {
+						if len(newTags) == 0 {
+							m.statusMsg = "Tags cleared"
+						} else {
+							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
+						}
+						// Force reload metadata
+						delete(m.taskMetadata, file.Path)
+						m.loadVisibleMetadata()
+					}
+				}
+			} else if file.IsProject() {
+				if project, ok := m.projectMetadata[file.Path]; ok {
+					project.ProjectMetadata.Tags = newTags
+					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+					} else {
+						if len(newTags) == 0 {
+							m.statusMsg = "Tags cleared"
+						} else {
+							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
+						}
+						// Force reload metadata
+						delete(m.projectMetadata, file.Path)
+						m.loadVisibleMetadata()
+					}
+				}
+			}
+		}
+		m.mode = ModeNormal
+		m.editingField = ""
+		m.editBuffer = ""
+		
+	case "backspace":
+		if len(m.editBuffer) > 0 {
+			m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+		}
+		
+	default:
+		if len(msg.String()) == 1 {
+			m.editBuffer += msg.String()
 		}
 	}
 	

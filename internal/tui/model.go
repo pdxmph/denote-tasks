@@ -114,6 +114,8 @@ const (
 	ModeProjectSelect
 	ModeCreateProject
 	ModeCreateProjectTags
+	ModeDateEdit
+	ModeTagsEdit
 )
 
 // ViewMode removed - we're always in task mode now
@@ -1319,6 +1321,10 @@ func (m Model) View() string {
 		return m.renderCreateProject()
 	case ModeCreateProjectTags:
 		return m.renderCreateProjectTags()
+	case ModeDateEdit:
+		return m.renderDateEditPopup()
+	case ModeTagsEdit:
+		return m.renderTagsEditPopup()
 	default:
 		return m.renderNormal()
 	}
@@ -1400,3 +1406,125 @@ func (m *Model) addLogEntry() error {
 	
 	return nil
 }
+func (m Model) renderDateEditPopup() string {
+	// Render the normal view as background
+	bg := m.renderNormal()
+	
+	// Create popup content
+	var content []string
+	content = append(content, "Edit Due Date")
+	content = append(content, "")
+	content = append(content, "Format: YYYY-MM-DD")
+	content = append(content, "")
+	content = append(content, fmt.Sprintf("Date: %s█", m.editBuffer))
+	content = append(content, "")
+	content = append(content, "Enter to save, Esc to cancel")
+	
+	// Style the popup
+	popupStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("214")).
+		Padding(1, 2).
+		Width(40).
+		Align(lipgloss.Center)
+	
+	popup := popupStyle.Render(strings.Join(content, "\n"))
+	
+	// Center the popup over the background
+	return m.overlayPopup(bg, popup)
+}
+
+func (m Model) renderTagsEditPopup() string {
+	// Render the normal view as background
+	bg := m.renderNormal()
+	
+	// Create popup content
+	var content []string
+	content = append(content, "Edit Tags")
+	content = append(content, "")
+	content = append(content, "Enter tags separated by spaces")
+	content = append(content, "")
+	content = append(content, fmt.Sprintf("Tags: %s█", m.editBuffer))
+	content = append(content, "")
+	content = append(content, "Enter to save, Esc to cancel")
+	
+	// Style the popup
+	popupStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("135")). // Purple for tags
+		Padding(1, 2).
+		Width(50).
+		Align(lipgloss.Center)
+	
+	popup := popupStyle.Render(strings.Join(content, "\n"))
+	
+	// Center the popup over the background
+	return m.overlayPopup(bg, popup)
+}
+
+func (m Model) overlayPopup(background, popup string) string {
+	bgLines := strings.Split(background, "\n")
+	popupLines := strings.Split(popup, "\n")
+	
+	// Calculate center position
+	bgHeight := len(bgLines)
+	bgWidth := 0
+	for _, line := range bgLines {
+		if len(line) > bgWidth {
+			bgWidth = len(line)
+		}
+	}
+	
+	popupHeight := len(popupLines)
+	popupWidth := 0
+	for _, line := range popupLines {
+		lineWidth := lipgloss.Width(line)
+		if lineWidth > popupWidth {
+			popupWidth = lineWidth
+		}
+	}
+	
+	// Calculate starting position
+	startY := (bgHeight - popupHeight) / 2
+	if startY < 0 {
+		startY = 0
+	}
+	
+	startX := (bgWidth - popupWidth) / 2
+	if startX < 0 {
+		startX = 0
+	}
+	
+	// Overlay popup on background
+	result := make([]string, len(bgLines))
+	copy(result, bgLines)
+	
+	for i, popupLine := range popupLines {
+		if startY+i < len(result) {
+			// Create a line with proper spacing
+			line := ""
+			if startX > 0 {
+				// Add the left part of the background
+				bgLine := bgLines[startY+i]
+				if startX < len(bgLine) {
+					line = bgLine[:startX]
+				} else {
+					line = bgLine + strings.Repeat(" ", startX-len(bgLine))
+				}
+			}
+			
+			// Add the popup line
+			line += popupLine
+			
+			// Pad to maintain line width if needed
+			if len(line) < bgWidth {
+				line += strings.Repeat(" ", bgWidth-len(line))
+			}
+			
+			result[startY+i] = line
+		}
+	}
+	
+	return strings.Join(result, "\n")
+}
+EOF < /dev/null
