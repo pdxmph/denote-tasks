@@ -116,7 +116,7 @@ func (m Model) renderTaskDetails() string {
 	var lines []string
 	
 	// Title
-	lines = append(lines, m.renderField("Title", meta.Title, ""))
+	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", ""))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -135,52 +135,42 @@ func (m Model) renderTaskDetails() string {
 		statusColor = "230" // default
 	}
 	statusStyled := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColor)).Render(statusValue)
-	lines = append(lines, m.renderField("Status", statusStyled, "s"))
+	lines = append(lines, m.renderFieldWithHotkey("Status", statusStyled, "open", "s"))
 	
-	// Priority with color
-	if meta.Priority != "" {
-		var priorityColor string
-		switch meta.Priority {
-		case "p1":
-			priorityColor = "196" // red
-		case "p2":
-			priorityColor = "214" // orange
-		case "p3":
-			priorityColor = "245" // gray
-		default:
-			priorityColor = "230"
-		}
-		priorityStyled := lipgloss.NewStyle().Foreground(lipgloss.Color(priorityColor)).Bold(true).Render(meta.Priority)
-		lines = append(lines, m.renderField("Priority", priorityStyled, "p"))
-	} else {
-		lines = append(lines, m.renderField("Priority", "(not set)", "p"))
+	// Priority - use specialized renderer
+	isEditing := m.editingField == "p"
+	editBuf := ""
+	if isEditing {
+		editBuf = m.editBuffer
 	}
+	priorityLine := m.fieldRenderer.RenderPriority(meta.Priority, isEditing, editBuf)
+	// Add hotkey hint if not editing
+	if !isEditing {
+		priorityLine = strings.Replace(priorityLine, "Priority    :", "(p)riority  :", 1)
+	}
+	lines = append(lines, "  " + priorityLine)
 	
-	// Due Date with overdue highlighting
-	if meta.DueDate != "" {
-		dueValue := meta.DueDate
-		if denote.IsOverdue(meta.DueDate) {
-			dueValue = overdueStyle.Render(dueValue + " (OVERDUE!)")
-		} else if denote.IsDueThisWeek(meta.DueDate) {
-			dueValue = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dueValue + " (this week)")
-		}
-		lines = append(lines, m.renderField("Due Date", dueValue, "d"))
-	} else {
-		lines = append(lines, m.renderField("Due Date", "(not set)", "d"))
+	// Due Date - use specialized renderer
+	dueDateEdit := m.editingField == "d"
+	dueBuf := ""
+	if dueDateEdit {
+		dueBuf = m.editBuffer
 	}
+	dueLine := m.fieldRenderer.RenderDueDate(meta.DueDate, dueDateEdit, dueBuf)
+	// Add hotkey hint if not editing
+	if !dueDateEdit {
+		dueLine = strings.Replace(dueLine, "Due Date    :", "(d)ue Date  :", 1)
+	}
+	lines = append(lines, "  " + dueLine)
 	
 	// Area
-	if meta.Area != "" {
-		lines = append(lines, m.renderField("Area", meta.Area, "a"))
-	} else {
-		lines = append(lines, m.renderField("Area", "(not set)", "a"))
-	}
+	lines = append(lines, m.renderFieldWithHotkey("Area", meta.Area, "not set", "a"))
 	
 	// Time Estimate
 	if meta.Estimate > 0 {
-		lines = append(lines, m.renderField("Estimate", fmt.Sprintf("%d", meta.Estimate), "t"))
+		lines = append(lines, m.renderFieldWithHotkey("Estimate", fmt.Sprintf("%d", meta.Estimate), "not set", "t"))
 	} else {
-		lines = append(lines, m.renderField("Estimate", "(not set)", "t"))
+		lines = append(lines, m.renderFieldWithHotkey("Estimate", "", "not set", "t"))
 	}
 	
 	// Tags (editable)
@@ -191,13 +181,13 @@ func (m Model) renderTaskDetails() string {
 		// Show file tags if no metadata tags
 		tagsDisplay = strings.Join(task.File.Tags, " ") + " (from filename)"
 	} else {
-		tagsDisplay = "(not set)"
+		tagsDisplay = ""
 	}
-	lines = append(lines, m.renderField("Tags", tagsDisplay, "g"))
+	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
 	
 	// Other metadata
 	if meta.StartDate != "" {
-		lines = append(lines, m.renderField("Start Date", meta.StartDate, ""))
+		lines = append(lines, m.renderFieldWithHotkey("Start Date", meta.StartDate, "not set", ""))
 	}
 	
 	// Project with name lookup
@@ -214,19 +204,19 @@ func (m Model) renderTaskDetails() string {
 				break
 			}
 		}
-		lines = append(lines, m.renderField("Project", projectName, "j"))
+		lines = append(lines, m.renderFieldWithHotkey("Project", projectName, "not set", "j"))
 	} else {
-		lines = append(lines, m.renderField("Project", "(not set)", "j"))
+		lines = append(lines, m.renderFieldWithHotkey("Project", "", "not set", "j"))
 	}
 	
 	if meta.Assignee != "" {
-		lines = append(lines, m.renderField("Assignee", meta.Assignee, ""))
+		lines = append(lines, m.renderFieldWithHotkey("Assignee", meta.Assignee, "not set", ""))
 	}
 	
 	// File info
 	lines = append(lines, "")
-	lines = append(lines, m.renderField("File", m.viewingFile.Path, ""))
-	lines = append(lines, m.renderField("ID", task.File.ID, ""))
+	lines = append(lines, m.renderFieldWithHotkey("File", m.viewingFile.Path, "", ""))
+	lines = append(lines, m.renderFieldWithHotkey("ID", task.File.ID, "", ""))
 	
 	
 	return strings.Join(lines, "\n")
@@ -239,34 +229,34 @@ func (m Model) renderProjectDetails() string {
 	var lines []string
 	
 	// Title
-	lines = append(lines, m.renderField("Title", meta.Title, ""))
+	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "not set", ""))
 	
 	// Status
 	statusValue := meta.Status
 	if statusValue == "" {
 		statusValue = "active"
 	}
-	lines = append(lines, m.renderField("Status", statusValue, "s"))
+	lines = append(lines, m.renderFieldWithHotkey("Status", statusValue, "not set", "s"))
 	
 	// Priority
 	if meta.Priority != "" {
-		lines = append(lines, m.renderField("Priority", meta.Priority, "p"))
+		lines = append(lines, m.renderFieldWithHotkey("Priority", meta.Priority, "not set", "p"))
 	} else {
-		lines = append(lines, m.renderField("Priority", "(not set)", "p"))
+		lines = append(lines, m.renderFieldWithHotkey("Priority", "", "not set", "p"))
 	}
 	
 	// Due Date
 	if meta.DueDate != "" {
-		lines = append(lines, m.renderField("Due Date", meta.DueDate, "d"))
+		lines = append(lines, m.renderFieldWithHotkey("Due Date", meta.DueDate, "not set", "d"))
 	} else {
-		lines = append(lines, m.renderField("Due Date", "(not set)", "d"))
+		lines = append(lines, m.renderFieldWithHotkey("Due Date", "", "not set", "d"))
 	}
 	
 	// Area
 	if meta.Area != "" {
-		lines = append(lines, m.renderField("Area", meta.Area, "a"))
+		lines = append(lines, m.renderFieldWithHotkey("Area", meta.Area, "not set", "a"))
 	} else {
-		lines = append(lines, m.renderField("Area", "(not set)", "a"))
+		lines = append(lines, m.renderFieldWithHotkey("Area", "", "not set", "a"))
 	}
 	
 	// Tags (editable)
@@ -277,21 +267,21 @@ func (m Model) renderProjectDetails() string {
 		// Show file tags if no metadata tags
 		tagsDisplay = strings.Join(project.File.Tags, " ") + " (from filename)"
 	} else {
-		tagsDisplay = "(not set)"
+		tagsDisplay = ""
 	}
-	lines = append(lines, m.renderField("Tags", tagsDisplay, "g"))
+	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
 	
 	// Other metadata
 	if meta.StartDate != "" {
-		lines = append(lines, m.renderField("Start Date", meta.StartDate, ""))
+		lines = append(lines, m.renderFieldWithHotkey("Start Date", meta.StartDate, "not set", ""))
 	}
 	
 	// File info
 	lines = append(lines, "")
-	lines = append(lines, m.renderField("File", m.viewingFile.Path, ""))
-	lines = append(lines, m.renderField("ID", project.File.ID, ""))
+	lines = append(lines, m.renderFieldWithHotkey("File", m.viewingFile.Path, "", ""))
+	lines = append(lines, m.renderFieldWithHotkey("ID", project.File.ID, "", ""))
 	if len(project.File.Tags) > 0 {
-		lines = append(lines, m.renderField("Tags", strings.Join(project.File.Tags, ", "), ""))
+		lines = append(lines, m.renderFieldWithHotkey("Tags", strings.Join(project.File.Tags, ", "), "not set", ""))
 	}
 	
 	return strings.Join(lines, "\n")
@@ -378,28 +368,31 @@ func wrapText(text string, width int) string {
 	return strings.Join(result, "\n")
 }
 
-func (m Model) renderField(label, value, hotkey string) string {
-	labelText := label + ":"
+func (m Model) renderFieldWithHotkey(label, value, emptyText, hotkey string) string {
+	// Special label formatting for hotkeys
+	displayLabel := label
 	if hotkey != "" && m.editingField != hotkey {
 		// Special cases for better display
 		switch {
 		case hotkey == "t" && label == "Estimate":
-			labelText = "es(t)imate:"
+			displayLabel = "es(t)imate"
 		case hotkey == "g" && label == "Tags":
-			labelText = "ta(g)s:"
+			displayLabel = "ta(g)s"
 		case hotkey == "j" && label == "Project":
-			labelText = "pro(j)ect:"
+			displayLabel = "pro(j)ect"
 		default:
-			labelText = fmt.Sprintf("(%s)%s:", hotkey, label[1:])
+			displayLabel = fmt.Sprintf("(%s)%s", hotkey, label[1:])
 		}
 	}
 	
-	// Highlight if we're editing this field
-	if m.editingField == hotkey && hotkey != "" {
-		value = editingStyle.Render(value)
+	// Determine if we're editing this field
+	isEditing := m.editingField == hotkey && hotkey != ""
+	editBuf := ""
+	if isEditing {
+		editBuf = m.editBuffer
 	}
 	
-	return fmt.Sprintf("  %-15s %s", 
-		fieldLabelStyle.Render(labelText),
-		value)
+	// Use the field renderer for consistent formatting
+	rendered := m.fieldRenderer.RenderField(displayLabel, value, emptyText, isEditing, editBuf)
+	return "  " + rendered
 }

@@ -95,7 +95,7 @@ func (m Model) renderProjectMain() string {
 	var lines []string
 	
 	// Project metadata (similar to task view)
-	lines = append(lines, m.renderField("Title", meta.Title, "t"))
+	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", "t"))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -114,7 +114,7 @@ func (m Model) renderProjectMain() string {
 		statusColor = "230" // default
 	}
 	statusStyled := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColor)).Render(statusValue)
-	lines = append(lines, m.renderField("Status", statusStyled, "s"))
+	lines = append(lines, m.renderFieldWithHotkey("Status", statusStyled, "active", "s"))
 	
 	// Priority with color
 	if meta.Priority != "" {
@@ -130,9 +130,9 @@ func (m Model) renderProjectMain() string {
 			priorityColor = "230"
 		}
 		priorityStyled := lipgloss.NewStyle().Foreground(lipgloss.Color(priorityColor)).Bold(true).Render(meta.Priority)
-		lines = append(lines, m.renderField("Priority", priorityStyled, "p"))
+		lines = append(lines, m.renderFieldWithHotkey("Priority", priorityStyled, "none", "p"))
 	} else {
-		lines = append(lines, m.renderField("Priority", "(not set)", "p"))
+		lines = append(lines, m.renderFieldWithHotkey("Priority", "", "not set", "p"))
 	}
 	
 	// Due Date with overdue highlighting
@@ -143,16 +143,16 @@ func (m Model) renderProjectMain() string {
 		} else if denote.IsDueThisWeek(meta.DueDate) {
 			dueValue = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dueValue + " (this week)")
 		}
-		lines = append(lines, m.renderField("Due Date", dueValue, "d"))
+		lines = append(lines, m.renderFieldWithHotkey("Due Date", dueValue, "not set", "d"))
 	} else {
-		lines = append(lines, m.renderField("Due Date", "(not set)", "d"))
+		lines = append(lines, m.renderFieldWithHotkey("Due Date", "", "not set", "d"))
 	}
 	
 	// Area
 	if meta.Area != "" {
-		lines = append(lines, m.renderField("Area", meta.Area, "a"))
+		lines = append(lines, m.renderFieldWithHotkey("Area", meta.Area, "not set", "a"))
 	} else {
-		lines = append(lines, m.renderField("Area", "(not set)", "a"))
+		lines = append(lines, m.renderFieldWithHotkey("Area", "", "not set", "a"))
 	}
 	
 	// Tags
@@ -165,17 +165,17 @@ func (m Model) renderProjectMain() string {
 	} else {
 		tagsDisplay = "(not set)"
 	}
-	lines = append(lines, m.renderField("Tags", tagsDisplay, "g"))
+	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "g"))
 	
 	// Other metadata
 	if meta.StartDate != "" {
-		lines = append(lines, m.renderField("Start Date", meta.StartDate, ""))
+		lines = append(lines, m.renderFieldWithHotkey("Start Date", meta.StartDate, "not set", ""))
 	}
 	
 	// File info
 	lines = append(lines, "")
-	lines = append(lines, m.renderField("File", m.viewingFile.Path, ""))
-	lines = append(lines, m.renderField("ID", project.File.ID, ""))
+	lines = append(lines, m.renderFieldWithHotkey("File", m.viewingFile.Path, "", ""))
+	lines = append(lines, m.renderFieldWithHotkey("ID", project.File.ID, "", ""))
 	
 	// Add horizontal rule
 	lines = append(lines, "\n" + strings.Repeat("─", 60))

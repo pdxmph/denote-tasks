@@ -79,6 +79,7 @@ type Model struct {
 	err        error
 	statusMsg  string
 	lastKey    string
+	fieldRenderer *FieldRenderer
 	
 	// Log entry mode
 	logInput     string // Current log entry being typed
@@ -149,6 +150,7 @@ func NewModel(cfg *config.Config) (*Model, error) {
 		reverseSort:     reverseSort,
 		taskMetadata:    make(map[string]*denote.Task),
 		projectMetadata: make(map[string]*denote.Project),
+		fieldRenderer:   NewFieldRenderer(),
 	}
 	
 	// Initial scan
