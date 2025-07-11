@@ -169,8 +169,8 @@ def create_project_file(project, index, base_dir):
     
     # Create filename
     slug = title_to_slug(project["title"])
-    tags_part = "__".join(project["tags"])
-    filename = f"{denote_id}--{slug}__{tags_part}.md"
+    tags_part = "_".join(project["tags"])
+    filename = f"{denote_id}--{slug}_{tags_part}.md"
     
     # Create frontmatter
     due_date = format_date(project["due_date"]) if project.get("due_date") else ""
@@ -222,8 +222,8 @@ def create_task_file(task_data, task_index, base_dir, project_map):
     
     # Create filename
     slug = title_to_slug(task_data["title"])
-    tags_part = "__".join(tags)
-    filename = f"{denote_id}--{slug}__{tags_part}.md"
+    tags_part = "_".join(tags)
+    filename = f"{denote_id}--{slug}_{tags_part}.md"
     
     # Determine status
     status = task_data.get("status", "open")
