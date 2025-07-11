@@ -119,7 +119,7 @@ echo -e "${GREEN}View at: https://github.com/pdxmph/denote-tasks/releases/tag/$V
 
 # Step 6: Update Homebrew formula
 echo -e "\n${YELLOW}Step 6: Updating Homebrew formula...${NC}"
-if [ -d "$HOME/code/homebrew-taps" ]; then
+if [ -d "$HOME/code/homebrew-tap" ]; then
     # Calculate SHA256 for source archive
     SOURCE_URL="https://github.com/pdxmph/denote-tasks/archive/refs/tags/${VERSION}.tar.gz"
     echo "Downloading source archive for SHA calculation..."
@@ -132,7 +132,7 @@ if [ -d "$HOME/code/homebrew-taps" ]; then
     BINARY_SHA=$(shasum -a 256 "dist/$ARCHIVE_NAME" | cut -d' ' -f1)
     
     # Update or create the formula
-    FORMULA_PATH="$HOME/code/homebrew-taps/Formula/denote-tasks.rb"
+    FORMULA_PATH="$HOME/code/homebrew-tap/Formula/denote-tasks.rb"
     cat > "$FORMULA_PATH" << EOF
 class DenoteTasks < Formula
   desc "Task management tool using Denote file naming convention"
@@ -191,25 +191,25 @@ EOF
     echo -e "${GREEN}✅ Homebrew formula updated${NC}"
     
     # Commit and push the formula update
-    cd "$HOME/code/homebrew-taps"
+    cd "$HOME/code/homebrew-tap"
     git add "Formula/denote-tasks.rb"
     git commit -m "denote-tasks ${VERSION}" || echo "No changes to commit"
     git push || echo "Failed to push - you may need to push manually"
     cd - > /dev/null
     
     echo -e "\n${YELLOW}Homebrew installation will be available after push completes:${NC}"
-    echo "  brew tap pdxmph/homebrew-taps  # if not already tapped"
-    echo "  brew install pdxmph/homebrew-taps/denote-tasks"
+    echo "  brew tap pdxmph/homebrew-tap  # if not already tapped"
+    echo "  brew install pdxmph/homebrew-tap/denote-tasks"
 else
-    echo -e "${YELLOW}Homebrew taps directory not found at ~/code/homebrew-taps${NC}"
+    echo -e "${YELLOW}Homebrew tap directory not found at ~/code/homebrew-tap${NC}"
     echo "Skipping Homebrew formula update."
 fi
 
 # Show installation instructions
 echo -e "\n${YELLOW}Installation instructions:${NC}"
 echo "Via Homebrew (recommended):"
-echo "  brew tap pdxmph/homebrew-taps"
-echo "  brew install pdxmph/homebrew-taps/denote-tasks"
+echo "  brew tap pdxmph/homebrew-tap"
+echo "  brew install pdxmph/homebrew-tap/denote-tasks"
 echo ""
 echo "Or manually:"
 echo "  curl -L https://github.com/pdxmph/denote-tasks/releases/download/$VERSION/$ARCHIVE_NAME | tar xz"
