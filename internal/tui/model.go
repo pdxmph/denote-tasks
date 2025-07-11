@@ -67,6 +67,7 @@ type Model struct {
 	viewingFile     *denote.File
 	editingField    string // which field is being edited
 	editBuffer      string // temporary edit buffer
+	editCursor      int    // cursor position in edit buffer
 	returnToProject bool   // whether to return to project view after task view
 	
 	// Project view mode
@@ -1418,8 +1419,17 @@ func (m Model) renderDateEditPopup() string {
 	content = append(content, "Format: YYYY-MM-DD or natural language")
 	content = append(content, "")
 	
-	// Show input with validation preview
-	inputLine := fmt.Sprintf("Input: %s█", m.editBuffer)
+	// Show input with cursor at correct position
+	var inputLine string
+	if m.editCursor < len(m.editBuffer) {
+		// Cursor in middle of text
+		inputLine = fmt.Sprintf("Input: %s█%s", 
+			m.editBuffer[:m.editCursor], 
+			m.editBuffer[m.editCursor:])
+	} else {
+		// Cursor at end
+		inputLine = fmt.Sprintf("Input: %s█", m.editBuffer)
+	}
 	content = append(content, inputLine)
 	
 	// Show parsed date preview if valid
@@ -1464,7 +1474,18 @@ func (m Model) renderTagsEditPopup() string {
 	content = append(content, "")
 	content = append(content, "Enter tags separated by spaces")
 	content = append(content, "")
-	content = append(content, fmt.Sprintf("Tags: %s█", m.editBuffer))
+	// Show input with cursor at correct position
+	var inputLine string
+	if m.editCursor < len(m.editBuffer) {
+		// Cursor in middle of text
+		inputLine = fmt.Sprintf("Tags: %s█%s", 
+			m.editBuffer[:m.editCursor], 
+			m.editBuffer[m.editCursor:])
+	} else {
+		// Cursor at end
+		inputLine = fmt.Sprintf("Tags: %s█", m.editBuffer)
+	}
+	content = append(content, inputLine)
 	content = append(content, "")
 	content = append(content, "Enter to save, Esc to cancel")
 	

@@ -543,6 +543,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						m.editBuffer = ""
 					}
 				}
+				m.editCursor = len(m.editBuffer)
 			}
 		}
 		
@@ -567,6 +568,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						m.editBuffer = ""
 					}
 				}
+				m.editCursor = len(m.editBuffer)
 			}
 		}
 		
@@ -1246,6 +1248,7 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeNormal
 		m.editingField = ""
 		m.editBuffer = ""
+		m.editCursor = 0
 		
 	case "enter":
 		// Parse and validate the date
@@ -1296,15 +1299,42 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeNormal
 		m.editingField = ""
 		m.editBuffer = ""
+		m.editCursor = 0
 		
 	case "backspace":
-		if len(m.editBuffer) > 0 {
-			m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+		if m.editCursor > 0 && len(m.editBuffer) > 0 {
+			// Remove character before cursor
+			m.editBuffer = m.editBuffer[:m.editCursor-1] + m.editBuffer[m.editCursor:]
+			m.editCursor--
 		}
+		
+	case "delete":
+		if m.editCursor < len(m.editBuffer) {
+			// Remove character at cursor
+			m.editBuffer = m.editBuffer[:m.editCursor] + m.editBuffer[m.editCursor+1:]
+		}
+		
+	case "left", "ctrl+b":
+		if m.editCursor > 0 {
+			m.editCursor--
+		}
+		
+	case "right", "ctrl+f":
+		if m.editCursor < len(m.editBuffer) {
+			m.editCursor++
+		}
+		
+	case "home", "ctrl+a":
+		m.editCursor = 0
+		
+	case "end", "ctrl+e":
+		m.editCursor = len(m.editBuffer)
 		
 	default:
 		if len(msg.String()) == 1 {
-			m.editBuffer += msg.String()
+			// Insert character at cursor position
+			m.editBuffer = m.editBuffer[:m.editCursor] + msg.String() + m.editBuffer[m.editCursor:]
+			m.editCursor++
 		}
 	}
 	
@@ -1317,6 +1347,7 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeNormal
 		m.editingField = ""
 		m.editBuffer = ""
+		m.editCursor = 0
 		
 	case "enter":
 		// Update the tags
@@ -1371,15 +1402,42 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeNormal
 		m.editingField = ""
 		m.editBuffer = ""
+		m.editCursor = 0
 		
 	case "backspace":
-		if len(m.editBuffer) > 0 {
-			m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+		if m.editCursor > 0 && len(m.editBuffer) > 0 {
+			// Remove character before cursor
+			m.editBuffer = m.editBuffer[:m.editCursor-1] + m.editBuffer[m.editCursor:]
+			m.editCursor--
 		}
+		
+	case "delete":
+		if m.editCursor < len(m.editBuffer) {
+			// Remove character at cursor
+			m.editBuffer = m.editBuffer[:m.editCursor] + m.editBuffer[m.editCursor+1:]
+		}
+		
+	case "left", "ctrl+b":
+		if m.editCursor > 0 {
+			m.editCursor--
+		}
+		
+	case "right", "ctrl+f":
+		if m.editCursor < len(m.editBuffer) {
+			m.editCursor++
+		}
+		
+	case "home", "ctrl+a":
+		m.editCursor = 0
+		
+	case "end", "ctrl+e":
+		m.editCursor = len(m.editBuffer)
 		
 	default:
 		if len(msg.String()) == 1 {
-			m.editBuffer += msg.String()
+			// Insert character at cursor position
+			m.editBuffer = m.editBuffer[:m.editCursor] + msg.String() + m.editBuffer[m.editCursor:]
+			m.editCursor++
 		}
 	}
 	
