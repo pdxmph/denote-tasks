@@ -1,0 +1,26 @@
+# Demo configuration for denote-tasks screenshots
+# This uses the demo-notes directory with generated fixtures
+
+# Directory containing denote files
+notes_directory = "./demo-notes"
+
+# External editor command (optional)
+# Uses $EDITOR environment variable if not set
+editor = "vim"
+
+# Show area tags in task list (default: true)
+show_area = true
+
+# Show project names in task list (default: true) 
+show_project = true
+
+# Soon horizon in days for highlighting due dates (default: 7)
+soon_horizon = 7
+
+# Default sort order (default: "priority")
+# Options: "priority", "due", "created", "modified", "title"
+default_sort = "priority"
+
+# Default area filter (optional)
+# Uncomment to start with a specific area filter
+# default_area = "work"
