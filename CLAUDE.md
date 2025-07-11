@@ -41,12 +41,15 @@ This file contains important context about the denote-tasks project to help AI a
 
 ### For TUI Development
 
+**IMPORTANT FOR AI ASSISTANTS:** It is IMPOSSIBLE to test TUI applications in this environment. NEVER attempt to run or test the TUI. Instead, always ask the user to test the features and provide feedback. TUI applications require an interactive terminal which is not available in this context.
+
 Since TUI applications can't be tested in this environment:
 
 1. **Implement features completely** before declaring done
 2. **Document what needs manual testing** in PROGRESS.md
 3. **Create test configurations** (never modify user configs)
 4. **List specific test cases** for human testing
+5. **Ask the user to test** rather than attempting to test yourself
 
 ### Manual Testing Checklist
 
