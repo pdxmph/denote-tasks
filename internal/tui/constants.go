@@ -56,4 +56,38 @@ const (
 	MsgNoEditor          = "No editor configured"
 	MsgTasksOnly         = "Task management only - notes mode removed"
 	MsgAlreadyInTaskMode = "Already showing tasks"
+	MsgFuzzyMatch        = " (fuzzy match, #tag for tags, Esc to clear)"
+	MsgPressEnterSelect  = "press Enter to select"
+	MsgPressEnterChange  = "press Enter to change"
+	MsgSpaceSeparated    = "space-separated"
+)
+
+// Column Widths
+const (
+	ColumnWidthTitle       = 50
+	ColumnWidthTitleAlt    = 40
+	ColumnWidthTags        = 25
+	ColumnWidthArea        = 10
+	ColumnWidthProject     = 15
+	ColumnWidthID          = 15
+	ColumnWidthDueSpaces   = 12
+	ProjectViewHeaderHeight = 10
+	DefaultVisibleHeight   = 20
+)
+
+// Error Formats
+const (
+	ErrorFormat   = "Error: %v"
+	ErrorFailedTo = "failed to %s: %w"
+)
+
+// Date Formats
+const (
+	DateFormatSimple  = "2006-01-02"
+	DateFormatWithDay = "[2006-01-02 Mon]"
+)
+
+// UI Format Strings
+const (
+	SortFormatString = "Sort: %s"
 )

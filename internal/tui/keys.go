@@ -113,40 +113,30 @@ func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handlePreviewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	const scrollAmount = 5
-	
 	switch msg.String() {
 	case "q", "esc", "enter":
 		m.mode = ModeNormal
 		m.previewFile = nil
 		
-	case "j", "down":
-		if m.previewScroll < m.previewMaxScroll {
-			m.previewScroll++
-		}
-		
-	case "k", "up":
-		if m.previewScroll > 0 {
-			m.previewScroll--
-		}
-		
-	case "ctrl+d":
-		// Page down
-		m.previewScroll += scrollAmount
-		if m.previewScroll > m.previewMaxScroll {
-			m.previewScroll = m.previewMaxScroll
-		}
-		
-	case "ctrl+u":
-		// Page up
-		m.previewScroll -= scrollAmount
-		if m.previewScroll < 0 {
-			m.previewScroll = 0
-		}
-		
 	case "e":
 		if m.config.Editor != "" && m.previewFile != nil {
 			return m, m.editFile(m.previewFile.Path)
+		}
+		
+	default:
+		// Use navigation handler for scroll navigation
+		nav := NewNavigationHandler(m.previewMaxScroll+1, false)
+		nav.cursor = m.previewScroll
+		newScroll := nav.HandleKey(msg.String())
+		
+		// For preview, we want different behavior for g/G
+		switch msg.String() {
+		case "g":
+			m.previewScroll = 0
+		case "G":
+			m.previewScroll = m.previewMaxScroll
+		default:
+			m.previewScroll = newScroll
 		}
 	}
 	
@@ -341,22 +331,23 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 		
-	case "j", "down":
-		if m.cursor < len(m.filtered)-1 {
-			m.cursor++
-			m.loadVisibleMetadata()
-		}
-		
-	case "k", "up":
-		if m.cursor > 0 {
-			m.cursor--
-			m.loadVisibleMetadata()
+	case "j", "down", "k", "up", "ctrl+d", "ctrl+u":
+		// Use navigation handler for main list
+		if len(m.filtered) > 0 {
+			nav := NewNavigationHandler(len(m.filtered), false)
+			nav.cursor = m.cursor
+			newCursor := nav.HandleKey(msg.String())
+			if newCursor != m.cursor {
+				m.cursor = newCursor
+				m.loadVisibleMetadata()
+			}
 		}
 		
 	case "g":
 		if m.lastKey == "g" {
 			m.cursor = 0
 			m.lastKey = ""
+			m.loadVisibleMetadata()
 		} else {
 			m.lastKey = "g"
 		}
@@ -364,6 +355,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "G":
 		if len(m.filtered) > 0 {
 			m.cursor = len(m.filtered) - 1
+			m.loadVisibleMetadata()
 		}
 		
 	case "/":
@@ -414,13 +406,13 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Set priority
 		priority := "p" + msg.String()
 		if err := m.updateTaskPriority(priority); err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		}
 		
 	case "0":
 		// Clear priority
 		if err := m.updateTaskPriority(""); err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		}
 		
 	case "e":
@@ -724,7 +716,7 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err = m.updateCurrentTaskStatus(denote.TaskStatusOpen)
 		}
 		if err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		} else {
 			m.statusMsg = "Task status changed to open"
 		}
@@ -739,7 +731,7 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err = m.updateCurrentTaskStatus(denote.TaskStatusPaused)
 		}
 		if err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		} else {
 			m.statusMsg = "Task status changed to paused"
 		}
@@ -754,7 +746,7 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err = m.updateCurrentTaskStatus(denote.TaskStatusDone)
 		}
 		if err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		} else {
 			m.statusMsg = "Task status changed to done"
 		}
@@ -769,7 +761,7 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err = m.updateCurrentTaskStatus(denote.TaskStatusDelegated)
 		}
 		if err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		} else {
 			m.statusMsg = "Task status changed to delegated"
 		}
@@ -784,7 +776,7 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err = m.updateCurrentTaskStatus(denote.TaskStatusDropped)
 		}
 		if err != nil {
-			m.statusMsg = fmt.Sprintf("Error: %v", err)
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		} else {
 			m.statusMsg = "Task status changed to dropped"
 		}
@@ -1170,24 +1162,11 @@ func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-	case "j", "down":
-		// Account for None option at index 0
-		if m.projectSelectCursor < len(m.projectSelectList) {
-			m.projectSelectCursor++
-		}
-		
-	case "k", "up":
-		if m.projectSelectCursor > 0 {
-			m.projectSelectCursor--
-		}
-		
-	case "g":
-		m.projectSelectCursor = 0
-		
-	case "G":
-		if len(m.projectSelectList) > 0 {
-			m.projectSelectCursor = len(m.projectSelectList) // Last project, not None
-		}
+	case "j", "down", "k", "up", "g", "G", "ctrl+d", "ctrl+u":
+		// Use navigation handler (account for None option at index 0)
+		nav := NewNavigationHandler(len(m.projectSelectList)+1, false)
+		nav.cursor = m.projectSelectCursor
+		m.projectSelectCursor = nav.HandleKey(msg.String())
 		
 	// Allow number selection (0-9)
 	case "0":

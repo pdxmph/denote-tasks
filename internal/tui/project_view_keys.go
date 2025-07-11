@@ -49,7 +49,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				updateErr = m.updateProjectField(fieldName, updateValue)
 				
 				if updateErr != nil {
-					m.statusMsg = fmt.Sprintf("Error: %v", updateErr)
+					m.statusMsg = fmt.Sprintf(ErrorFormat, updateErr)
 				} else {
 					m.statusMsg = fmt.Sprintf("Updated %s", fieldName)
 					
@@ -186,14 +186,12 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 		
 	// Keys for task navigation (on main tab)
-	case "j", "down":
-		if m.projectViewTab == 0 && m.projectTasksCursor < len(m.projectTasks)-1 {
-			m.projectTasksCursor++
-		}
-		
-	case "k", "up":
-		if m.projectViewTab == 0 && m.projectTasksCursor > 0 {
-			m.projectTasksCursor--
+	case "j", "down", "k", "up", "G", "ctrl+d", "ctrl+u":
+		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
+			// Use navigation handler for task list in project view
+			nav := NewNavigationHandler(len(m.projectTasks), false)
+			nav.cursor = m.projectTasksCursor
+			m.projectTasksCursor = nav.HandleKey(msg.String())
 		}
 		
 	case "enter":
@@ -214,7 +212,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Clear priority on selected task
 			task := &m.projectTasks[m.projectTasksCursor]
 			if err := m.updateTaskPriorityFromProject(task, ""); err != nil {
-				m.statusMsg = fmt.Sprintf("Error: %v", err)
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 			} else {
 				m.statusMsg = "Task priority cleared"
 			}
@@ -226,7 +224,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			task := &m.projectTasks[m.projectTasksCursor]
 			priority := "p" + msg.String()
 			if err := m.updateTaskPriorityFromProject(task, priority); err != nil {
-				m.statusMsg = fmt.Sprintf("Error: %v", err)
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 			} else {
 				m.statusMsg = fmt.Sprintf("Task priority updated to %s", priority)
 			}

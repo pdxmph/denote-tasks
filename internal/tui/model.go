@@ -687,7 +687,7 @@ func (m Model) create() tea.Cmd {
 				project.ProjectMetadata.Area = m.areaFilter
 				// Write back the updated metadata
 				if err := denote.UpdateProjectFile(project.File.Path, project.ProjectMetadata); err != nil {
-					return fmt.Errorf("failed to update project area: %w", err)
+					return fmt.Errorf(ErrorFailedTo, "update project area", err)
 				}
 			}
 			
@@ -721,13 +721,13 @@ func (m *Model) updateTaskPriority(priority string) error {
 	// Read the file content
 	content, err := os.ReadFile(file.Path)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "read file", err)
 	}
 	
 	// Parse existing frontmatter
 	fm, err := denote.ParseFrontmatterFile(content)
 	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
 	}
 	
 	// Update the metadata
@@ -737,12 +737,12 @@ func (m *Model) updateTaskPriority(priority string) error {
 		// Write updated content
 		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
 		if err != nil {
-			return fmt.Errorf("failed to write frontmatter: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
 		}
 		
 		// Write to file
 		if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write file", err)
 		}
 		
 		// Update our in-memory copy
@@ -766,13 +766,13 @@ func (m *Model) updateTaskField(field, value string) error {
 	// Read the file content
 	content, err := os.ReadFile(m.viewingFile.Path)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "read file", err)
 	}
 	
 	// Parse existing frontmatter
 	fm, err := denote.ParseFrontmatterFile(content)
 	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
 	}
 	
 	// Update the metadata
@@ -812,7 +812,7 @@ func (m *Model) updateTaskField(field, value string) error {
 		// Write updated content
 		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
 		if err != nil {
-			return fmt.Errorf("failed to write frontmatter: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
 		}
 		
 		// Check if we need to rename the file (for tag changes)
@@ -838,7 +838,7 @@ func (m *Model) updateTaskField(field, value string) error {
 		
 		// Write to file (at potentially new path)
 		if err := os.WriteFile(newPath, newContent, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write file", err)
 		}
 		
 		// Update our in-memory copy
@@ -880,13 +880,13 @@ func (m *Model) updateProjectField(field, value string) error {
 	// Read the file content
 	content, err := os.ReadFile(m.viewingFile.Path)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "read file", err)
 	}
 	
 	// Parse existing frontmatter
 	fm, err := denote.ParseFrontmatterFile(content)
 	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
 	}
 	
 	// Update the metadata
@@ -923,7 +923,7 @@ func (m *Model) updateProjectField(field, value string) error {
 		// Write updated content
 		newContent, err := denote.WriteFrontmatterFile(projectMeta, fm.Content)
 		if err != nil {
-			return fmt.Errorf("failed to write frontmatter: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
 		}
 		
 		// Check if we need to rename the file (for tag or title changes)
@@ -992,7 +992,7 @@ func (m *Model) updateProjectField(field, value string) error {
 		
 		// Write to file (at potentially new path)
 		if err := os.WriteFile(newPath, newContent, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write file", err)
 		}
 		
 		// Update our in-memory copy
@@ -1218,13 +1218,13 @@ func (m *Model) clearProjectFromTask(taskPath string) error {
 	// Read the file content
 	content, err := os.ReadFile(taskPath)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "read file", err)
 	}
 	
 	// Parse existing frontmatter
 	fm, err := denote.ParseFrontmatterFile(content)
 	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
 	}
 	
 	// Update the metadata
@@ -1235,12 +1235,12 @@ func (m *Model) clearProjectFromTask(taskPath string) error {
 		// Write updated content
 		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
 		if err != nil {
-			return fmt.Errorf("failed to write frontmatter: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
 		}
 		
 		// Write to file
 		if err := os.WriteFile(taskPath, newContent, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
+			return fmt.Errorf(ErrorFailedTo, "write file", err)
 		}
 		
 		// Update cached metadata
@@ -1279,7 +1279,7 @@ func (m Model) View() string {
 	if m.err != nil {
 		return lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
-			Render("Error: " + m.err.Error())
+			Render(fmt.Sprintf(ErrorFormat, m.err))
 	}
 	
 	switch m.mode {
@@ -1330,7 +1330,7 @@ func (m *Model) addLogEntry() error {
 	// Read the file
 	content, err := os.ReadFile(m.loggingFile.Path)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf(ErrorFailedTo, "read file", err)
 	}
 	
 	// Find the end of frontmatter

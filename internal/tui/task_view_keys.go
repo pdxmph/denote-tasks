@@ -24,13 +24,13 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					if m.editBuffer == "" || m.editBuffer == "0" {
 						// Clear priority
 						if err := m.updateTaskField("priority", ""); err != nil {
-							m.statusMsg = fmt.Sprintf("Error: %v", err)
+							m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 						} else {
 							m.statusMsg = "Priority removed"
 						}
 					} else if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
 						if err := m.updateTaskField("priority", "p"+m.editBuffer); err != nil {
-							m.statusMsg = fmt.Sprintf("Error: %v", err)
+							m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 						} else {
 							m.statusMsg = fmt.Sprintf("Priority set to p%s", m.editBuffer)
 						}
@@ -39,23 +39,23 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 				case "status":
 					if err := m.updateTaskField("status", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "due":
 					if err := m.updateTaskField("due_date", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "area":
 					if err := m.updateTaskField("area", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "estimate":
 					if err := m.updateTaskField("estimate", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "tags":
 					if err := m.updateTaskField("tags", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				}
 			} else if m.viewingProject != nil {
@@ -65,13 +65,13 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					if m.editBuffer == "" || m.editBuffer == "0" {
 						// Clear priority
 						if err := m.updateProjectField("priority", ""); err != nil {
-							m.statusMsg = fmt.Sprintf("Error: %v", err)
+							m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 						} else {
 							m.statusMsg = "Priority removed"
 						}
 					} else if m.editBuffer == "1" || m.editBuffer == "2" || m.editBuffer == "3" {
 						if err := m.updateProjectField("priority", "p"+m.editBuffer); err != nil {
-							m.statusMsg = fmt.Sprintf("Error: %v", err)
+							m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 						} else {
 							m.statusMsg = fmt.Sprintf("Priority set to p%s", m.editBuffer)
 						}
@@ -80,19 +80,19 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 				case "status":
 					if err := m.updateProjectField("status", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "due":
 					if err := m.updateProjectField("due_date", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "area":
 					if err := m.updateProjectField("area", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				case "tags":
 					if err := m.updateProjectField("tags", m.editBuffer); err != nil {
-						m.statusMsg = fmt.Sprintf("Error: %v", err)
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					}
 				}
 			}
@@ -206,7 +206,7 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.editBuffer = ""
 		}
-		m.statusMsg = "Enter tags (space-separated):"
+		m.statusMsg = "Enter tags (" + MsgSpaceSeparated + "):"
 		
 	case "r":
 		// Rename file to match current metadata tags

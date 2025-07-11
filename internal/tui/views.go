@@ -113,7 +113,7 @@ func (m Model) renderHeader() string {
 	}
 	
 	// Sort info
-	sortInfo := fmt.Sprintf("Sort: %s", m.sortBy)
+	sortInfo := fmt.Sprintf(SortFormatString, m.sortBy)
 	if m.reverseSort {
 		sortInfo += " ↓"
 	} else {
@@ -149,9 +149,9 @@ func (m Model) renderFileList() string {
 	}
 	
 	// Calculate visible range
-	visibleHeight := m.height - 6 // Leave room for header and footer
+	visibleHeight := m.height - HeaderFooterHeight // Leave room for header and footer
 	if visibleHeight < 1 {
-		visibleHeight = 20 // Default
+		visibleHeight = DefaultVisibleHeight // Default
 	}
 	
 	start := 0
@@ -245,27 +245,27 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	}
 	
 	// Format: Status Priority Title (Area) [Due Date]
-	status := "○" // open
+	status := StatusSymbolOpen // open
 	isDone := false
 	if task.TaskMetadata.Status == denote.TaskStatusDone {
-		status = "✓"
+		status = StatusSymbolDone
 		isDone = true
 	} else if task.TaskMetadata.Status == denote.TaskStatusPaused {
-		status = "⏸"
+		status = StatusSymbolPaused
 	} else if task.TaskMetadata.Status == denote.TaskStatusDelegated {
-		status = "→"
+		status = StatusSymbolDelegated
 	} else if task.TaskMetadata.Status == denote.TaskStatusDropped {
-		status = "⨯"
+		status = StatusSymbolDropped
 	}
 	
 	// Priority with color
 	priority := "    " // Default empty space for alignment
 	switch task.TaskMetadata.Priority {
-	case "p1":
+	case PriorityLevels[0]:
 		priority = priorityHighStyle.Render("[p1]")
-	case "p2":
+	case PriorityLevels[1]:
 		priority = priorityMediumStyle.Render("[p2]")
-	case "p3":
+	case PriorityLevels[2]:
 		priority = priorityLowStyle.Render("[p3]")
 	}
 	
@@ -326,10 +326,10 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 			due = dateStr
 		}
 		// Pad to consistent width (dates are typically 12 chars [YYYY-MM-DD])
-		due = fmt.Sprintf("%-12s", due)
+		due = fmt.Sprintf("%*s", -ColumnWidthDueSpaces, due)
 	} else {
 		// Empty date placeholder for alignment
-		due = "            "  // 12 spaces
+		due = strings.Repeat(" ", ColumnWidthDueSpaces)
 	}
 	
 	// Tags - filter out 'task' and 'project'
@@ -347,15 +347,15 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	// Build the line with proper spacing
 	// Note: priority and due already have color codes, so we use %s instead of fixed width
 	// Format: selector status priority due title tags area project
-	line := fmt.Sprintf("%s %s %s %s  %-50s %-25s %-10s %s", 
+	line := fmt.Sprintf("%s %s %s %s  %*s %*s %*s %s", 
 		selector,
 		status, 
 		priority, 
-		due,                     // Right after priority
-		truncate(title, 50),     // Good room for title (with 2 spaces before)
-		truncate(tagStr, 25),    // Tags
-		truncate(area, 10),      // Area (truncated for consistency)
-		projectName)             // Project at the very end
+		due,                                           // Right after priority
+		-ColumnWidthTitle, truncate(title, ColumnWidthTitle),     // Good room for title (with 2 spaces before)
+		-ColumnWidthTags, truncate(tagStr, ColumnWidthTags),    // Tags
+		-ColumnWidthArea, truncate(area, ColumnWidthArea),      // Area (truncated for consistency)
+		projectName)                                   // Project at the very end
 	
 	// Apply overall styling
 	if index == m.cursor {
@@ -433,7 +433,7 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	
 	
 	// Truncate title first
-	titleTruncated := truncate(title, 50)
+	titleTruncated := truncate(title, ColumnWidthTitle)
 	
 	// No special styling for status - will be handled at line level
 	
@@ -494,16 +494,16 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 			dueDisplay = dateStr
 		}
 	} else {
-		dueDisplay = "            "  // 12 spaces
+		dueDisplay = strings.Repeat(" ", ColumnWidthDueSpaces)
 		if isActive {
 			dueDisplay = cyanStyle.Render(dueDisplay)
 		}
 	}
 	
 	// Prepare padded strings BEFORE applying colors
-	titlePadded := fmt.Sprintf("%-50s", titleTruncated)
-	tagsPadded := fmt.Sprintf("%-25s", truncate(tagStr, 25))
-	areaPadded := fmt.Sprintf("%-10s", truncate(area, 10))
+	titlePadded := fmt.Sprintf("%*s", -ColumnWidthTitle, titleTruncated)
+	tagsPadded := fmt.Sprintf("%*s", -ColumnWidthTags, truncate(tagStr, ColumnWidthTags))
+	areaPadded := fmt.Sprintf("%*s", -ColumnWidthArea, truncate(area, ColumnWidthArea))
 	
 	// Apply cyan to components if active
 	statusDisplay := status
@@ -556,7 +556,7 @@ func (m Model) renderFooter() string {
 	if m.mode == ModeSearch {
 		// Show search input at bottom when in search mode
 		prompt := "Search: " + m.searchInput + "█"
-		help := " (fuzzy match, #tag for tags, Esc to clear)"
+		help := MsgFuzzyMatch
 		return "\n" + prompt + helpStyle.Render(help)
 	}
 	
@@ -670,7 +670,7 @@ func (m Model) renderCreate() string {
 	
 	// Look up project name if we have a project ID
 	projectDisplay := m.createProject
-	projectHint := "press Enter to select"
+	projectHint := MsgPressEnterSelect
 	if m.createProject != "" {
 		// Find project name
 		for _, f := range m.files {
@@ -683,7 +683,7 @@ func (m Model) renderCreate() string {
 				break
 			}
 		}
-		projectHint = "press Enter to change"
+		projectHint = MsgPressEnterChange
 	}
 	
 	fields := []struct {
@@ -798,7 +798,7 @@ func (m Model) renderSort() string {
 
 func (m Model) renderStateMenu() string {
 	if m.cursor >= len(m.filtered) {
-		return "No task selected"
+		return MsgNoTaskSelected
 	}
 	
 	file := m.filtered[m.cursor]
@@ -1017,7 +1017,7 @@ func truncate(s string, max int) string {
 
 func (m Model) renderLogEntry() string {
 	if m.loggingFile == nil {
-		return "No task selected"
+		return MsgNoTaskSelected
 	}
 	
 	title := m.loggingFile.Title

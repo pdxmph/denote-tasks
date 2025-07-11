@@ -24,7 +24,7 @@ var (
 
 func (m Model) renderProjectView() string {
 	if m.viewingProject == nil {
-		return "No project selected"
+		return MsgNoProjectSelected
 	}
 	
 	var sections []string
@@ -195,9 +195,9 @@ func (m Model) renderProjectTasks() string {
 	var lines []string
 	
 	// Calculate visible range
-	visibleHeight := m.height - 10 // Leave room for header, tabs, and footer
+	visibleHeight := m.height - ProjectViewHeaderHeight // Leave room for header, tabs, and footer
 	if visibleHeight < 1 {
-		visibleHeight = 10 // Default
+		visibleHeight = ProjectViewHeaderHeight // Default
 	}
 	
 	start := 0
@@ -306,9 +306,9 @@ func (m Model) renderProjectTaskLine(index int, task denote.Task) string {
 		status,
 		priority,
 		due,
-		truncate(title, 50),
-		truncate(tags, 25),
-		truncate(area, 10))
+		truncate(title, ColumnWidthTitle),
+		truncate(tags, ColumnWidthTags),
+		truncate(area, ColumnWidthArea))
 	
 	// Apply styling based on state
 	if m.projectViewTab == 0 && index == m.projectTasksCursor {
