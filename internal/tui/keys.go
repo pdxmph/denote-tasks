@@ -1620,7 +1620,7 @@ func (m Model) handleEstimateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							if estimate == 0 {
 								m.statusMsg = "Estimate cleared"
 							} else {
-								m.statusMsg = fmt.Sprintf("Estimate set to %d hours", estimate)
+								m.statusMsg = fmt.Sprintf("Estimate set to %d", estimate)
 							}
 						}
 					}

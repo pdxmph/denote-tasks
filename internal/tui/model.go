@@ -1422,19 +1422,19 @@ func (m Model) renderEstimateEditPopup() string {
 	var content []string
 	content = append(content, "Edit Estimate")
 	content = append(content, "")
-	content = append(content, "Enter time estimate in hours (numbers only)")
+	content = append(content, "Enter numeric value (story points, etc.)")
 	content = append(content, "")
 	
 	// Show input with cursor at correct position
 	var inputLine string
 	if m.editCursor < len(m.editBuffer) {
 		// Cursor in middle of text
-		inputLine = fmt.Sprintf("Hours: %s█%s", 
+		inputLine = fmt.Sprintf("Value: %s█%s", 
 			m.editBuffer[:m.editCursor], 
 			m.editBuffer[m.editCursor:])
 	} else {
 		// Cursor at end
-		inputLine = fmt.Sprintf("Hours: %s█", m.editBuffer)
+		inputLine = fmt.Sprintf("Value: %s█", m.editBuffer)
 	}
 	content = append(content, inputLine)
 	content = append(content, "")

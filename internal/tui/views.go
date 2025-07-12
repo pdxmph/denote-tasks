@@ -276,7 +276,7 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	// Estimate
 	estimate := "    " // Default empty space for alignment
 	if task.TaskMetadata.Estimate > 0 {
-		estimate = fmt.Sprintf("%3dh", task.TaskMetadata.Estimate)
+		estimate = fmt.Sprintf("%4d", task.TaskMetadata.Estimate)
 	}
 	
 	title := task.TaskMetadata.Title
@@ -721,7 +721,7 @@ func (m Model) renderCreate() string {
 		{"Due Date", m.createDue, "YYYY-MM-DD or natural language"},
 		{"Area", m.createArea, "life context"},
 		{"Project", projectDisplay, projectHint},
-		{"Estimate", m.createEstimate, "time estimate"},
+		{"Estimate", m.createEstimate, "numeric value"},
 		{"Tags", m.createTags, "space-separated"},
 	}
 	
