@@ -532,11 +532,11 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	
 	// Build line with pre-padded, pre-colored components
 	// Include empty estimate column space to align with tasks
-	line := fmt.Sprintf("%s %s %s      %s  %s %s %s %s", 
+	line := fmt.Sprintf("%s %s %s       %s  %s %s %s %s", 
 		selector,
 		statusDisplay, 
 		priority,      // priority
-		              // 5 spaces for estimate column + 1 space separator
+		              // 6 spaces for estimate column + 1 space separator  
 		dueDisplay,
 		titleDisplay,
 		tagsDisplay,
