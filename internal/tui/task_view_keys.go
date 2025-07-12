@@ -22,6 +22,12 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Save the field
 			if m.viewingTask != nil {
 				switch m.editingField {
+				case "title":
+					if err := m.updateTaskField("title", m.editBuffer); err != nil {
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+					} else {
+						m.statusMsg = "Title updated"
+					}
 				case "priority":
 					if m.editBuffer == "" || m.editBuffer == "0" {
 						// Clear priority
@@ -63,6 +69,12 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if m.viewingProject != nil {
 				// Handle project updates
 				switch m.editingField {
+				case "title":
+					if err := m.updateProjectField("title", m.editBuffer); err != nil {
+						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+					} else {
+						m.statusMsg = "Title updated"
+					}
 				case "priority":
 					if m.editBuffer == "" || m.editBuffer == "0" {
 						// Clear priority
@@ -177,6 +189,17 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 	// Field edit hotkeys
+	case "T":
+		// Title field (uppercase - different from tags)
+		m.editingField = "title"
+		if m.viewingTask != nil {
+			m.editBuffer = m.viewingTask.TaskMetadata.Title
+		} else if m.viewingProject != nil {
+			m.editBuffer = m.viewingProject.ProjectMetadata.Title
+		}
+		m.editCursor = len(m.editBuffer)
+		m.statusMsg = "Enter title:"
+		
 	case "p":
 		m.editingField = "priority"
 		m.editBuffer = ""

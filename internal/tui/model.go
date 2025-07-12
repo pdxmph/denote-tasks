@@ -704,6 +704,8 @@ func (m *Model) updateTaskField(field, value string) error {
 	// Update the metadata
 	if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
 		switch field {
+		case "title":
+			taskMeta.Title = value
 		case "priority":
 			taskMeta.Priority = value
 		case "status":
