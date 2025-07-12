@@ -284,6 +284,19 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 		title = file.Title
 	}
 	
+	// Check if task has notes by parsing content
+	hasNotes := false
+	if task.Content != "" {
+		if fm, err := denote.ParseFrontmatterFile([]byte(task.Content)); err == nil {
+			hasNotes = strings.TrimSpace(fm.Content) != ""
+		}
+	}
+	
+	// Add notes indicator to title
+	if hasNotes {
+		title = "≡ " + title
+	}
+	
 	area := ""
 	// Only show area if we're not filtering by area
 	if task.TaskMetadata.Area != "" && m.areaFilter == "" {
@@ -443,6 +456,18 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		title = file.Title
 	}
 	
+	// Check if project has notes by parsing content
+	hasNotes := false
+	if project.Content != "" {
+		if fm, err := denote.ParseFrontmatterFile([]byte(project.Content)); err == nil {
+			hasNotes = strings.TrimSpace(fm.Content) != ""
+		}
+	}
+	
+	// Add notes indicator to title
+	if hasNotes {
+		title = "≡ " + title
+	}
 	
 	// Truncate title first
 	titleTruncated := truncate(title, ColumnWidthTitle)
