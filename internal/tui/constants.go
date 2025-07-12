@@ -71,7 +71,7 @@ const (
 	ColumnWidthProject     = 15
 	ColumnWidthID          = 15
 	ColumnWidthDueSpaces   = 12
-	ColumnWidthEstimate    = 4
+	ColumnWidthEstimate    = 5
 	ProjectViewHeaderHeight = 10
 	DefaultVisibleHeight   = 20
 )
