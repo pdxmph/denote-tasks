@@ -114,6 +114,7 @@ const (
 	ModeCreateProjectTags
 	ModeDateEdit
 	ModeTagsEdit
+	ModeEstimateEdit
 )
 
 // ViewMode removed - we're always in task mode now
@@ -1213,6 +1214,8 @@ func (m Model) View() string {
 		return m.renderDateEditPopup()
 	case ModeTagsEdit:
 		return m.renderTagsEditPopup()
+	case ModeEstimateEdit:
+		return m.renderEstimateEditPopup()
 	default:
 		return m.renderNormal()
 	}
@@ -1409,6 +1412,48 @@ func (m Model) overlayPopup(background, popup string) string {
 	return lipgloss.Place(
 		width,
 		height,
+		lipgloss.Center,
+		lipgloss.Center,
+		popup,
+	)
+}
+func (m Model) renderEstimateEditPopup() string {
+	// Create popup content
+	var content []string
+	content = append(content, "Edit Estimate")
+	content = append(content, "")
+	content = append(content, "Enter time estimate in hours (numbers only)")
+	content = append(content, "")
+	
+	// Show input with cursor at correct position
+	var inputLine string
+	if m.editCursor < len(m.editBuffer) {
+		// Cursor in middle of text
+		inputLine = fmt.Sprintf("Hours: %s█%s", 
+			m.editBuffer[:m.editCursor], 
+			m.editBuffer[m.editCursor:])
+	} else {
+		// Cursor at end
+		inputLine = fmt.Sprintf("Hours: %s█", m.editBuffer)
+	}
+	content = append(content, inputLine)
+	content = append(content, "")
+	content = append(content, "Enter to save, Esc to cancel")
+	
+	// Style the popup with background color
+	popupStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("214")). // Orange for estimates
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("252")).
+		Padding(1, 2)
+	
+	popup := popupStyle.Render(strings.Join(content, "\n"))
+	
+	// Overlay popup on background
+	return lipgloss.Place(
+		m.width,
+		m.height,
 		lipgloss.Center,
 		lipgloss.Center,
 		popup,

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	
@@ -52,6 +53,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDateEditKeys(msg)
 	case ModeTagsEdit:
 		return m.handleTagsEditKeys(msg)
+	case ModeEstimateEdit:
+		return m.handleEstimateEditKeys(msg)
 	default:
 		return m.handleNormalKeys(msg)
 	}
@@ -544,6 +547,27 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					} else {
 						m.editBuffer = ""
 					}
+				}
+				m.editCursor = len(m.editBuffer)
+			}
+		}
+		
+	case "e":
+		// Edit estimate
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			if file.IsTask() {
+				m.mode = ModeEstimateEdit
+				m.editingField = "e"
+				// Load current estimate from disk
+				if task, err := denote.ParseTaskFile(file.Path); err == nil {
+					if task.TaskMetadata.Estimate > 0 {
+						m.editBuffer = fmt.Sprintf("%d", task.TaskMetadata.Estimate)
+					} else {
+						m.editBuffer = ""
+					}
+				} else {
+					m.editBuffer = ""
 				}
 				m.editCursor = len(m.editBuffer)
 			}
@@ -1519,6 +1543,120 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		
 	default:
 		if len(msg.String()) == 1 {
+			// Insert character at cursor position
+			m.editBuffer = m.editBuffer[:m.editCursor] + msg.String() + m.editBuffer[m.editCursor:]
+			m.editCursor++
+		}
+	}
+	
+	return m, nil
+}
+
+func (m Model) handleEstimateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		m.mode = ModeNormal
+		m.editingField = ""
+		m.editBuffer = ""
+		m.editCursor = 0
+		
+	case "enter":
+		// Save the estimate
+		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
+			file := m.filtered[m.cursor]
+			
+			// Parse the estimate value
+			var estimate int
+			if m.editBuffer != "" {
+				if val, err := strconv.Atoi(m.editBuffer); err == nil && val >= 0 {
+					estimate = val
+				} else {
+					m.statusMsg = "Invalid estimate - must be a positive number"
+					m.mode = ModeNormal
+					m.editingField = ""
+					m.editBuffer = ""
+					m.editCursor = 0
+					return m, nil
+				}
+			}
+			
+			// Update the task
+			if file.IsTask() {
+				// Read the file content
+				content, err := os.ReadFile(file.Path)
+				if err != nil {
+					m.statusMsg = fmt.Sprintf("Failed to read file: %v", err)
+					m.mode = ModeNormal
+					m.editingField = ""
+					m.editBuffer = ""
+					m.editCursor = 0
+					return m, nil
+				}
+				
+				// Parse existing frontmatter
+				fm, err := denote.ParseFrontmatterFile(content)
+				if err != nil {
+					m.statusMsg = fmt.Sprintf("Failed to parse frontmatter: %v", err)
+					m.mode = ModeNormal
+					m.editingField = ""
+					m.editBuffer = ""
+					m.editCursor = 0
+					return m, nil
+				}
+				
+				// Update the metadata
+				if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
+					taskMeta.Estimate = estimate
+					
+					// Write updated content
+					newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
+					if err != nil {
+						m.statusMsg = fmt.Sprintf("Failed to write frontmatter: %v", err)
+					} else {
+						// Write back to file
+						if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
+							m.statusMsg = fmt.Sprintf("Failed to update estimate: %v", err)
+						} else {
+							if estimate == 0 {
+								m.statusMsg = "Estimate cleared"
+							} else {
+								m.statusMsg = fmt.Sprintf("Estimate set to %d hours", estimate)
+							}
+						}
+					}
+				}
+			}
+		}
+		m.mode = ModeNormal
+		m.editingField = ""
+		m.editBuffer = ""
+		m.editCursor = 0
+		
+	case "backspace":
+		if m.editCursor > 0 {
+			m.editBuffer = m.editBuffer[:m.editCursor-1] + m.editBuffer[m.editCursor:]
+			m.editCursor--
+		}
+		
+	case "left":
+		if m.editCursor > 0 {
+			m.editCursor--
+		}
+		
+	case "right":
+		if m.editCursor < len(m.editBuffer) {
+			m.editCursor++
+		}
+		
+	case "home", "ctrl+a":
+		m.editCursor = 0
+		
+	case "end", "ctrl+e":
+		m.editCursor = len(m.editBuffer)
+		
+	default:
+		// Only allow numeric input
+		if len(msg.String()) == 1 && msg.String() >= "0" && msg.String() <= "9" {
 			// Insert character at cursor position
 			m.editBuffer = m.editBuffer[:m.editCursor] + msg.String() + m.editBuffer[m.editCursor:]
 			m.editCursor++

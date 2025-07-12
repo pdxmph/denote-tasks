@@ -273,6 +273,12 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 		priority = priorityLowStyle.Render("[p3]")
 	}
 	
+	// Estimate
+	estimate := "    " // Default empty space for alignment
+	if task.TaskMetadata.Estimate > 0 {
+		estimate = fmt.Sprintf("%3dh", task.TaskMetadata.Estimate)
+	}
+	
 	title := task.TaskMetadata.Title
 	if title == "" {
 		title = file.Title
@@ -351,12 +357,13 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	
 	// Build the line with proper spacing
 	// Note: priority and due already have color codes, so we use %s instead of fixed width
-	// Format: selector status priority due title tags area project
-	line := fmt.Sprintf("%s %s %s %s  %*s %*s %*s %s", 
+	// Format: selector status priority estimate due title tags area project
+	line := fmt.Sprintf("%s %s %s %s %s  %*s %*s %*s %s", 
 		selector,
 		status, 
 		priority, 
-		due,                                           // Right after priority
+		estimate,                                      // Right after priority
+		due,                                           // After estimate
 		-ColumnWidthTitle, truncate(title, ColumnWidthTitle),     // Good room for title (with 2 spaces before)
 		-ColumnWidthTags, truncate(tagStr, ColumnWidthTags),    // Tags
 		-ColumnWidthArea, truncate(area, ColumnWidthArea),      // Area (truncated for consistency)
@@ -624,6 +631,7 @@ Actions (lowercase):
   Enter   Open task/project details
   c       Create new task/project
   d       Edit due date
+  e       Edit estimate (tasks only)
   l       Add log entry (tasks only)
   r       Toggle sort order
   s       Change task state (open/done/etc)

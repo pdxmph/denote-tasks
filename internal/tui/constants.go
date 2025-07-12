@@ -64,13 +64,14 @@ const (
 
 // Column Widths
 const (
-	ColumnWidthTitle       = 50
-	ColumnWidthTitleAlt    = 40
-	ColumnWidthTags        = 25
+	ColumnWidthTitle       = 40
+	ColumnWidthTitleAlt    = 30
+	ColumnWidthTags        = 20
 	ColumnWidthArea        = 10
 	ColumnWidthProject     = 15
 	ColumnWidthID          = 15
 	ColumnWidthDueSpaces   = 12
+	ColumnWidthEstimate    = 4
 	ProjectViewHeaderHeight = 10
 	DefaultVisibleHeight   = 20
 )
