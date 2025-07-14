@@ -477,8 +477,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			// In task list, create a task
 			m.mode = ModeCreate
-			m.createTitle = ""
-			m.createTags = ""
+			m.resetCreateFields()
 		}
 		
 	case "f":
